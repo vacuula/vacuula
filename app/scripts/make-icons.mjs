@@ -15,7 +15,7 @@ const publicDir = path.join(root, '..', 'public')
 const outDir = path.join(publicDir, 'icons')
 
 // Must match MASCOTS in src/mascot/index.ts and --bg (dark) in src/theme/theme.css
-const MASCOTS = ['vacuula', 'robot']
+const MASCOTS = ['vacuula', 'robot', 'D7_vacuula']
 const BACKGROUND = 'transparent' // '#0f1113'
 
 // mascot size relative to the canvas: "any" icons fill most of it, maskable icons
