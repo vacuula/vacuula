@@ -5,7 +5,8 @@ import logoRobot from '../assets/robot.svg'
 // Mascot shown on the home page, the loading spinner and the tab icon.
 // Add a mascot: drop the SVG in src/assets and public/favicon-<id>.svg, add the id
 // here, an entry in MASCOTS and a `settings.mascot_<id>` string in every locale.
-export type MascotId = 'vacuula' | 'robot'
+export type MascotId = 'vacuula' | 'robot'  | 'D7'
+
 
 export interface MascotOption {
     id: MascotId
@@ -33,6 +34,13 @@ export const MASCOTS: MascotOption[] = [
         favicon: `${import.meta.env.BASE_URL}favicon-robot.svg`,
         manifest: `${import.meta.env.BASE_URL}manifest-robot.webmanifest`,
         appleTouchIcon: `${import.meta.env.BASE_URL}icons/apple-touch-icon-robot.png`
+    },
+    { 
+        id: 'D7_vacuula',
+        src: logoVacuula,
+        favicon: `${import.meta.env.BASE_URL}favicon-D7_vacuula.svg`,
+        manifest: `${import.meta.env.BASE_URL}manifest-vacuula.webmanifest`,
+        appleTouchIcon: `${import.meta.env.BASE_URL}icons/apple-touch-icon-vacuula.png`
     },
 ]
 export const DEFAULT_MASCOT = MASCOTS[0].id

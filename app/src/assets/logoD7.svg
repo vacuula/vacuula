@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%">
+  <defs>
+    <!-- Dégradé pour l'effet beige métallique -->
+    <linearGradient id="metal" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#d3cfc2" />
+      <stop offset="100%" stop-color="#9a9587" />
+    </linearGradient>
+
+    <!-- Filtre pour l'effet de halo (glow) rouge -->
+    <filter id="red-glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="blur1" />
+      <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur2" />
+      <feMerge>
+        <!-- Les couches de flou pour le halo -->
+        <feMergeNode in="blur2" />
+        <feMergeNode in="blur1" />
+        <!-- L'image source originale par-dessus -->
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Châssis -->
+  <path d="M 30 320 L 30 190 A 170 170 0 0 1 370 190 L 370 320 Q 370 350 340 350 L 60 350 Q 30 350 30 320 Z" fill="#1a1c1e" />
+  
+  <!-- Brosses latérales (côté gauche) -->
+  <g stroke="#222" stroke-width="4" stroke-linecap="round">
+    <line x1="30" y1="290" x2="10" y2="280" />
+    <line x1="30" y1="290" x2="10" y2="305" />
+  </g>
+
+  <!-- Panneau métallique supérieur -->
+  <path d="M 60 175 A 140 140 0 0 1 340 175 L 340 185 L 60 185 Z" fill="url(#metal)" />
+
+  <!-- Panneau métallique inférieur -->
+  <path d="M 60 190 L 340 190 L 340 290 Q 340 305 320 310 Q 200 340 80 310 Q 60 305 60 290 Z" fill="url(#metal)" />
+
+  <!-- Yeux de vampire avec effet de halo -->
+  <g fill="#e00000" filter="url(#red-glow)">
+    <!-- Oeil gauche (incliné vers le centre) -->
+    <polygon points="130,215 175,230 140,240" />
+    <!-- Oeil droit (symétrique, incliné vers le centre) -->
+    <polygon points="270,215 225,230 260,240" />
+  </g>
+
+
+  <!-- Découpe noire avant (poignée) -->
+  <path d="M 150 305 Q 200 320 250 305 L 245 330 Q 200 345 155 330 Z" fill="#0f0f0f" />
+
+  <!-- Base du dôme laser (Anneau noir) -->
+  <circle cx="200" cy="120" r="53" fill="#222" stroke="#444" stroke-width="1" />
+  <circle cx="200" cy="120" r="45" fill="#e0e0e0" />
+  
+  <!-- Intérieur du dôme laser (Métallique) -->
+  <circle cx="200" cy="120" r="39" fill="url(#metal)" />
+  
+  <!-- Texte -->
+  <text x="200" y="124" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="bold" fill="#383630" letter-spacing="-0.5" text-anchor="middle">vacuula</text>
+
+  <!-- Dents de vampire -->
+  <polygon points="140,322 147,322 147,344" fill="#ffffff" />
+  <polygon points="147,322 154,322 147,344" fill="#cccccc" />
+  <polygon points="246,322 253,322 253,344" fill="#ffffff" />
+  <polygon points="253,322 260,322 253,344" fill="#cccccc" />
+
+</svg>
