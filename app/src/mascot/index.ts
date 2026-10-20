@@ -1,11 +1,12 @@
 import { useCallback, useSyncExternalStore } from 'react'
+import logoD7Vacuula from '../assets/logoD7.svg'
 import logoVacuula from '../assets/logo.svg'
 import logoRobot from '../assets/robot.svg'
 
 // Mascot shown on the home page, the loading spinner and the tab icon.
 // Add a mascot: drop the SVG in src/assets and public/favicon-<id>.svg, add the id
 // here, an entry in MASCOTS and a `settings.mascot_<id>` string in every locale.
-export type MascotId = 'vacuula' | 'robot'  | 'D7'
+export type MascotId = 'vacuula' | 'robot'  | 'D7_vacuula'
 
 
 export interface MascotOption {
@@ -37,7 +38,7 @@ export const MASCOTS: MascotOption[] = [
     },
     { 
         id: 'D7_vacuula',
-        src: logoVacuula,
+        src: logoD7Vacuula,
         favicon: `${import.meta.env.BASE_URL}favicon-D7_vacuula.svg`,
         manifest: `${import.meta.env.BASE_URL}manifest-vacuula.webmanifest`,
         appleTouchIcon: `${import.meta.env.BASE_URL}icons/apple-touch-icon-vacuula.png`
