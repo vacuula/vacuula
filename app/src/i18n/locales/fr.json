@@ -197,7 +197,7 @@
     },
     "serverUnreachable": {
         "title": "Connexion au serveur impossible",
-        "subtitle": "L'application den peut pas se connecter au serveur Vacuula ! Vérifiez que le serveur est en marche et accessible depuis cet appareil.",
+        "subtitle": "L'application ne peut pas se connecter au serveur Vacuula ! Vérifiez que le serveur est en marche et accessible depuis cet appareil.",
         "mdnsDisclaimer": "Si vous utilisez mDNS (site via vacuula.local), alors cela peut mettre un peu de temps pour que l'appareil trouve l'IP du serveur, si le problème persiste, essayez de redémarrer le navigateur.",
         "retry": "Réessayer"
     },
