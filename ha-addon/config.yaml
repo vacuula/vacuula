@@ -9,6 +9,10 @@ arch:
   - amd64
 init: false
 host_network: true
+webui: "http://[HOST]:[PORT:80]"
+# Port metadata for the Web UI link; host networking still uses VACUULA_PORT.
+ports:
+  80/tcp: 80
 boot: auto
 image: "ghcr.io/vacuula/vacuula"
 
