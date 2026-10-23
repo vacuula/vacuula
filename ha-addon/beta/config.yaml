@@ -13,7 +13,7 @@ boot: auto
 image: "ghcr.io/vacuula/vacuula"
 
 ingress: true
-ingress_port: 80
+ingress_port: 0
 panel_icon: mdi:robot-vacuum-variant-alert
 
 map:
