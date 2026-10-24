@@ -1,5 +1,6 @@
 from __future__ import annotations
 import logging
+from vacuula_server.storage import storage_path
 from vacuula_server.constants import MAPS_DIR
 from vacuula_server.state import PendingRequest, robot_connections, pending_requests
 from vacuula_server.db import get_session, db_commit
@@ -255,9 +256,9 @@ def post_promote(req: RouterHandler, serial: str, map_id: str) -> None:
     # with open('./nogo_raw.pgm', 'wb') as f:
     #     f.write(nogo_raw)
 
-    map_dir = MAPS_DIR / serial / str(map_id)
-    with open(map_dir / "rank_binary.pgm.nz", 'rb') as rank:
-        with open(map_dir / "real_binary.pgm.nz", 'rb') as real:
+    map_dir = storage_path(MAPS_DIR, serial, map_id)
+    with open(storage_path(map_dir, "rank_binary.pgm.nz"), 'rb') as rank:
+        with open(storage_path(map_dir, "real_binary.pgm.nz"), 'rb') as real:
             # TODO: verify if this patching is really needed!!!!
             real_binary_patched = _mark_targets_inside_zones(real.read(), cleaning_zones, floorplan)
             payload = {

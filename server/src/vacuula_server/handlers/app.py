@@ -1,5 +1,6 @@
 from __future__ import annotations
 import logging
+from vacuula_server.storage import storage_path
 from vacuula_server.conn import Gen2Gen3Conn
 from vacuula_server.gen3.commands import send_chunk, build_command
 from vacuula_server.env import GEN3_PORT, GEN4_PORT
@@ -72,7 +73,7 @@ def get_maps(req: RouterHandler, serial: str) -> None:
 
 def get_map(req: RouterHandler, serial: str, map_id: str) -> None:
     """GET /robot/<serial>/maps/<map_id> - return map data to user"""
-    file = MAPS_DIR / serial / str(map_id) / "floormap.json"
+    file = storage_path(MAPS_DIR, serial, map_id, "floormap.json")
 
     table = PersistentMap if '-' in serial else FloorPlan
 
@@ -170,7 +171,7 @@ def get_runs(req: RouterHandler, serial: str) -> None:
 
 def get_run(req: RouterHandler, serial: str, run_id: str) -> None:
     """GET /robot/<serial>/run/<run_id> - list all runs to user"""
-    file = MAPS_DIR / serial / str(run_id) / "runmap.json"
+    file = storage_path(MAPS_DIR, serial, run_id, "runmap.json")
 
     if not os.path.isfile(file):
         req.send_not_found("Map not found")

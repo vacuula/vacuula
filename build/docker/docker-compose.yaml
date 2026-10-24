@@ -2,6 +2,29 @@ services:
   vacuula:
     image: ghcr.io/vacuula/vacuula:latest # if you want a spesific version, you can change "latest" to the version number
     network_mode: host
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # Startup prepares legacy data, then retains only NET_BIND_SERVICE.
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - SETUID
+      - SETGID
+      - SETPCAP
+      - NET_BIND_SERVICE
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m,mode=1777
+    mem_limit: 1g
+    cpus: 2
+    pids_limit: 128
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     environment: # edit based on your needs
       - GEN3_PORT=335
       - GEN4_PORT=3443

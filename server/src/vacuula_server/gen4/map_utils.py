@@ -41,6 +41,7 @@ Importing as a module
 """
 
 from __future__ import annotations
+from vacuula_server.storage import storage_path, atomic_write
 
 import argparse
 import io
@@ -348,16 +349,14 @@ def parse_session(
 
     logger.debug("Parsing FloorMap: %s", floor_map_path)
     floor_data = _parse_floor_map(floor_map_path, map_type="floor")
-    floor_file = out_dir / floor_out
-    with open(floor_file, "w") as f:
-        json.dump(floor_data, f)
+    floor_file = storage_path(out_dir, floor_out)
+    atomic_write(floor_file, json.dumps(floor_data).encode("utf-8"))
     # _print_summary(floor_file, floor_data)
 
     logger.debug("Parsing RunMap: %s", run_map_path)
     run_data = _parse_path_map(run_map_path, map_type="path")
-    run_file = out_dir / run_out
-    with open(run_file, "w") as f:
-        json.dump(run_data, f)
+    run_file = storage_path(out_dir, run_out)
+    atomic_write(run_file, json.dumps(run_data).encode("utf-8"))
     # _print_summary(run_file, run_data)
 
     logger.info("Session parsed successfully: %s", out_dir)

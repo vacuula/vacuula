@@ -1,6 +1,7 @@
 
 from __future__ import annotations
 import logging
+from vacuula_server.storage import storage_path, component, atomic_write
 from sqlalchemy.util import b
 from vacuula_server.conn import RobotConn
 from vacuula_server.constants import MAPS_DIR
@@ -18,7 +19,6 @@ from vacuula_server.generation import Generation
 from vacuula_server.state import pending_requests, client_connections
 from datetime import datetime, timezone
 import struct, json
-import os
 import base64
 import json
 import io
@@ -31,7 +31,12 @@ logger = logging.getLogger(__name__)
 
 # todo: better validation of label_serial
 def handle_login(rc: RobotConn, msg):
-    serial = msg.get("serial", "<unknown>")
+    try:
+        serial = component(msg.get("serial"))
+    except ValueError:
+        rc.stop_event.set()
+        rc.conn.socket.close()
+        return
     
     if serial == "<unknown>" or rc.gen != Generation.GEN4:
         # fail and show error
@@ -198,39 +203,19 @@ def maps_create(rc: RobotConn, data: dict):
     logger.info("Received maps.create from robot %s", rc.serial)
     body = data["body"]
 
-    compressed = base64.b64decode(body["map"]["rank_binary"])
-
-    folder = MAPS_DIR / rc.serial / str(body['rank_uuid'])
-    upload_file = os.path.join(folder, 'rank_binary.pgm.nz')
-
     try:
-        os.makedirs(folder, exist_ok=True)
-        with open(upload_file, 'wb') as f:
-            f.write(compressed)
-    except Exception:
-        logger.error("Failed to save file for robot %s, rank_uuid %s", rc.serial, body['rank_uuid'])
-        return
-
-    compressed = base64.b64decode(body["map"]["real_binary"])
-
-    folder = MAPS_DIR / rc.serial / str(body['rank_uuid'])
-    upload_file = os.path.join(folder, 'real_binary.pgm.nz')
-
-    try:
-        os.makedirs(folder, exist_ok=True)
-        with open(upload_file, 'wb') as f:
-            f.write(compressed)
-
-        with open(os.path.join(folder, 'msg.json'), 'w') as f:
-            json.dump(data, f)
-    except Exception:
-        logger.error("Failed to save file for robot %s, rank_uuid %s", rc.serial, body['rank_uuid'])
-        return
-
-    job_folder = f"{MAPS_DIR}/{rc.serial}/{body['rank_uuid']}"
-    floor_map_path = f"{job_folder}/rank_binary.pgm.nz"
-    run_map_path = f"{job_folder}/real_binary.pgm.nz"
-    floormap_meta, _ = parse_session(floor_map_path, run_map_path, job_folder)
+        folder = storage_path(MAPS_DIR, rc.serial, body["rank_uuid"])
+        rank = base64.b64decode(body["map"]["rank_binary"], validate=True)
+        real = base64.b64decode(body["map"]["real_binary"], validate=True)
+        floor_map_path = storage_path(folder, "rank_binary.pgm.nz")
+        run_map_path = storage_path(folder, "real_binary.pgm.nz")
+        message_path = storage_path(folder, "msg.json")
+    except (KeyError, TypeError, ValueError):
+        return {"error": "Invalid map identifiers or data"}, 400
+    atomic_write(floor_map_path, rank)
+    atomic_write(run_map_path, real)
+    atomic_write(message_path, json.dumps(data).encode("utf-8"))
+    floormap_meta, _ = parse_session(floor_map_path, run_map_path, folder)
 
     with get_session() as session:
         session.add(FloorPlan(

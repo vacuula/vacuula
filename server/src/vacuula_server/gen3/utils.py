@@ -1,6 +1,7 @@
 
 from __future__ import annotations
 import typing
+from vacuula_server.storage import component
 if typing.TYPE_CHECKING:
     from vacuula_server.handlers.router import RouterHandler
 
@@ -12,7 +13,10 @@ def extract_robot_serial(auth_header: str) -> str:
     parts = token.split(":")
     if len(parts) < 2:
         return ""
-    return parts[0]
+    try:
+        return component(parts[0])
+    except ValueError:
+        return ""
 
 def get_robot_serial(req: RouterHandler):
     serial = extract_robot_serial(req.headers.get("Authorization", ""))

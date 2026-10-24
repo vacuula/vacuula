@@ -2,6 +2,7 @@ from __future__ import annotations
 import json
 import logging
 from vacuula_server.constants import MAPS_DIR
+from vacuula_server.storage import storage_path, component
 from vacuula_server.gen3.data import Gen3Data
 from vacuula_server.gen3.utils import get_robot_serial
 from vacuula_server.gen3.map_utils import parse_session
@@ -85,6 +86,14 @@ def upload_init(req: RouterHandler, upload_type: Literal["maps", "logs"]) -> Non
     if not (serial := get_robot_serial(req)): return
 
     map_id = data.get("group_id")
+    if upload_type not in ("maps", "logs"):
+        req.send_bad_request("Invalid upload type")
+        return
+    try:
+        component(map_id)
+    except ValueError:
+        req.send_bad_request("Invalid upload id")
+        return
     if not map_id:
         logger.error("Upload id not defined for robot %s", serial)
         req.send_bad_request("upload id missing")
@@ -122,6 +131,7 @@ def upload_finish(req: RouterHandler, upload_type:Literal["maps", "logs"], job_i
     if not data.get('success'):
         logger.error("Upload failed for robot %s, job %s", serial, job_id)
         req.send_bad_request("You said upload failed?")
+        return
     
     
     # we can now close the request to robot when we are getting logs
@@ -130,10 +140,10 @@ def upload_finish(req: RouterHandler, upload_type:Literal["maps", "logs"], job_i
         return
     
     # only maps should get the extra parsing
-    job_folder = f"{MAPS_DIR}/{serial}/{job_id}"
-    floor_map_path = f"{job_folder}/FloorMap.png"
-    manifest_path = f"{job_folder}/manifest.json"
-    run_map_path = f"{job_folder}/RunMap.png"
+    job_folder = storage_path(MAPS_DIR, serial, job_id)
+    floor_map_path = storage_path(job_folder, "FloorMap.png")
+    manifest_path = storage_path(job_folder, "manifest.json")
+    run_map_path = storage_path(job_folder, "RunMap.png")
     if not all(os.path.isfile(p) for p in [floor_map_path, manifest_path, run_map_path]):
         logger.error("Missing files for job %s", job_id)
         req.send_bad_request('files missing for upload')
@@ -160,10 +170,10 @@ def upload_finish(req: RouterHandler, upload_type:Literal["maps", "logs"], job_i
     # we can now close the connection for the maps, further parsing can be done of data
     req.send_ok() # TODO: send ok for actaully closing the upload
 
-    job_folder = f"{MAPS_DIR}/{serial}/{run_id}"
-    floor_map_path = f"{job_folder}/FloorMap.png"
-    run_map_path = f"{job_folder}/RunMap.png"
-    manifest_path = f"{job_folder}/manifest.json"
+    job_folder = storage_path(MAPS_DIR, serial, run_id)
+    floor_map_path = storage_path(job_folder, "FloorMap.png")
+    run_map_path = storage_path(job_folder, "RunMap.png")
+    manifest_path = storage_path(job_folder, "manifest.json")
     floormap_meta, _ = parse_session(floor_map_path, run_map_path, job_folder)
 
     base = (floormap_meta["dock"]["normalised_x"], floormap_meta["dock"]["normalised_y"])

@@ -42,8 +42,13 @@ WORKDIR /server
 
 # tools
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl openssl \
+    && apt-get install -y --no-install-recommends curl openssl util-linux \
     && rm -rf /var/lib/apt/lists/*
+
+RUN groupadd --gid 10001 vacuula \
+    && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin vacuula \
+    && mkdir -p /server/data \
+    && chown 10001:10001 /server/data
 
 ENV PATH="/server/.venv/bin:$PATH" PYTHONUNBUFFERED=1
 
@@ -56,4 +61,8 @@ COPY server/migrations ./migrations
 # Built frontend
 COPY --from=frontend /app/dist ./web
 
-CMD ["sh", "-c", "alembic upgrade head && vacuula-server"]
+COPY --chmod=755 build/docker/entrypoint.sh /usr/local/bin/vacuula-entrypoint
+COPY build/docker/prepare_data.py /usr/local/lib/vacuula/prepare_data.py
+ENTRYPOINT ["vacuula-entrypoint"]
+
+CMD ["sh", "-c", "alembic upgrade head && exec vacuula-server"]

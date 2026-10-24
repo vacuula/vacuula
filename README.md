@@ -77,6 +77,10 @@ We provide you with a couple of ways to set up the server
 2. Download [`docker-compose.yaml`](https://github.com/vacuula/vacuula/releases/latest/download/docker-compose.yaml) or run `wget https://github.com/vacuula/vacuula/releases/latest/download/docker-compose.yaml` to download and save the file
 3. Run `docker compose up -d`
 
+Existing standard Docker and Home Assistant installations are prepared
+automatically on startup when an updated image is supplied; no manual ownership
+repair is required. See [upgrade behavior and compatibility](docs/upgrades.md).
+
 - The server is configured by [environment variables](#configure-server)
 - To see logs do `docker compose logs vacuula`
 - To stop vacuula `docker compose down`
@@ -132,3 +136,16 @@ We have made an easy to use installer to set your robot up!
 ### Platform architecture
 We have currently only tested and verified on `ARM 64-bit` and `x86 64-bit`. However, we want the server to support at least `ARM 32-bit` and possibly `x86 32-bit` as well. We are looking into what we can do to make sure these platforms are also supported. The main reason behind wanting to support them is that the server can run on older SBCs. 
 
+## Security and local networking
+
+See [the deployment security notes](docs/security.md) before upgrading an
+existing Docker data volume. They describe the storage protections, reduced
+runtime privileges, and automatic volume preparation.
+
+Before changing identifier validation or storage naming, read the
+[Gen3/Gen4 identifier guide](server/docs/identifiers.md).
+
+Contributors: read [CONTRIBUTING.md](CONTRIBUTING.md), the
+[upgrade requirements](docs/upgrades.md), and the [test matrix](docs/testing.md).
+The PR template asks for the problem, detection evidence, required change,
+implementation, validation/upgrade impact, and whether AI assistance was used.

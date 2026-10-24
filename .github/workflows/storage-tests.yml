@@ -1,0 +1,31 @@
+name: Storage security tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  storage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - run: python -m pip install ./server
+      - run: python -m unittest discover -s server/tests -v
+  container-upgrades:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - run: docker build -t vacuula:test -f build/docker/Dockerfile .
+      - run: python -m unittest discover -s tests/container -v
+        env:
+          VACUULA_TEST_IMAGE: vacuula:test
