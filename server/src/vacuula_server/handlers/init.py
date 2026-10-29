@@ -1,6 +1,7 @@
 from __future__ import annotations
 import logging
 from vacuula_server.handlers.router import RouterHandler
+from vacuula_server.handlers.ingress import start_ingress
 import threading
 
 from vacuula_server.env import HOST_IP, VACUULA_PORT
@@ -16,4 +17,7 @@ def start():
 
     logger.info("Vacuula Server listening on http://%s:%d", HOST_IP, VACUULA_PORT)
 
-
+    try:
+        start_ingress(RouterHandler)
+    except Exception:
+        logger.exception("Could not start Home Assistant ingress; direct access remains available")
