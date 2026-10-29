@@ -1,0 +1,37 @@
+version: 2
+updates:
+  - package-ecosystem: "npm" # web app (pnpm)
+    directory: "/app"
+    schedule:
+      interval: "daily"
+    groups:
+      dependencies:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "uv" # server
+    directory: "/server"
+    schedule:
+      interval: "daily"
+    groups:
+      dependencies:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "docker" # base images
+    directory: "/build/docker"
+    schedule:
+      interval: "daily"
+    groups:
+      dependencies:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    groups:
+      dependencies:
+        patterns:
+          - "*"
