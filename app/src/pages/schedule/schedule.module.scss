@@ -15,6 +15,47 @@
     height: 100%;
 }
 
+.scheduleForm {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.formActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+}
+
+.errorPanel {
+    padding: 1rem;
+    color: $text-primary;
+}
+
+.formHint {
+    color: $text-muted;
+}
+
+.deleteButton {
+    padding: 0.75rem;
+    border: none;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+}
+
+.deleteButton:focus-visible,
+.actionItem:focus-visible {
+    outline: 2px solid $accent;
+    outline-offset: 3px;
+}
+
+.deleteButton:disabled,
+.actionItem:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
 .drawerSection {
     margin-bottom: 16px;
 
@@ -166,6 +207,9 @@
     // A list card that is itself an action ("New schedule"): same press/hover
     // feedback as the home-screen controls, accent-tinted, centred text.
     .actionItem {
+        width: 100%;
+        color: inherit;
+        font: inherit;
         justify-content: center;
         text-align: center;
         background: $accent-soft;

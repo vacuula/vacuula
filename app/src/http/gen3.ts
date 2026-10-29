@@ -1,6 +1,7 @@
 import { Http } from "../http"
-import type { NoGoLine, SetZone, Zone } from "../pages/map/types"
+import type { NoGoLine, SetZone } from "../pages/map/types"
 import type { ScheduleEvent } from "../pages/schedule/types"
+import { toWritableScheduleEvent } from '../pages/schedule/gen3Schedule'
 import type { Neato } from "../types"
 import type { Preferences } from "../types/neato/gen3"
 import type { GetMapBoundariesResponse, GetPreferencesResponse, GetScheduleResponse, RobotBaseResponse } from "../types/neato/gen3/api"
@@ -143,15 +144,17 @@ function getSchedule(serial: string) {
 }
 
 function setSchedule(serial: string, events: ScheduleEvent[]) {
-    return Http.sendCmd(serial, { cmd: "setSchedule", params: { events } })
+    return Http.sendCmd<RobotBaseResponse<Record<string, never>>>(serial, {
+        cmd: "setSchedule", params: { events: events.map(toWritableScheduleEvent) }
+    })
 }
 
 function enableSchedule(serial: string) {
-    return Http.sendCmd<RobotBaseResponse>(serial, { cmd: "enableSchedule" })
+    return Http.sendCmd<RobotBaseResponse<Record<string, never>>>(serial, { cmd: "enableSchedule" })
 }
 
 function disableSchedule(serial: string) {
-    return Http.sendCmd<RobotBaseResponse>(serial, { cmd: "disableSchedule" })
+    return Http.sendCmd<RobotBaseResponse<Record<string, never>>>(serial, { cmd: "disableSchedule" })
 }
 
 export const GEN3_COMMANDS = {

@@ -3,6 +3,7 @@
     "common": {
         "save": "Save",
         "cancel": "Cancel",
+        "retry": "Try again",
         "delete": "Delete",
         "edit": "Edit",
         "ok": "OK",
@@ -133,7 +134,13 @@
         "usePromoted": "Use floorplan",
         "useNogoLayer": "Avoid nogo lines & zones",
         "selectZones": "Clean zones",
-        "selectZonesHelp": "Optional, select one or more zones to clean, if none selected, it will clean entire map."
+        "selectZonesHelp": "Optional, select one or more zones to clean, if none selected, it will clean entire map.",
+        "selectSingleZoneHelp": "Optional: select one zone to clean. Click the selected zone again to clear it and clean the entire map.",
+        "requiredFields": "Choose a day and a valid time before saving.",
+        "loadError": "Could not load the schedule. Please try again.",
+        "updateError": "Could not update the schedule. Your changes have not been confirmed; please try again.",
+        "refreshError": "The command was accepted, but the updated schedule could not be confirmed. Reload before making more changes.",
+        "deleteEvent": "Delete {{day}} {{time}} schedule"
     },
     "map": {
         "maps": "Maps",

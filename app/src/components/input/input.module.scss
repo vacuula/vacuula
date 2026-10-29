@@ -68,7 +68,19 @@
     cursor: pointer;
 
     input[type="checkbox"] {
-        display: none;
+        position: absolute;
+        opacity: 0;
+        width: 1px;
+        height: 1px;
+    }
+
+    input[type="checkbox"]:focus-visible + .slider {
+        outline: 2px solid $accent;
+        outline-offset: 3px;
+    }
+
+    input[type="checkbox"]:disabled + .slider {
+        opacity: 0.5;
     }
 
     .slider {

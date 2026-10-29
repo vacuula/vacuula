@@ -3,6 +3,7 @@
     "common": {
         "save": "Guardar",
         "cancel": "Cancelar",
+        "retry": "Tentar novamente",
         "delete": "Eliminar",
         "edit": "Editar",
         "ok": "OK",
@@ -127,7 +128,13 @@
         "usePromoted": "Usar mapa",
         "useNogoLayer": "Evitar linhas e zonas No-Go",
         "selectZones": "Zonas de limpeza",
-        "selectZonesHelp": "Opcional: selecione uma ou mais zonas para limpar; se nenhuma for selecionada, todo o mapa será limpo."
+        "selectZonesHelp": "Opcional: selecione uma ou mais zonas para limpar; se nenhuma for selecionada, todo o mapa será limpo.",
+        "selectSingleZoneHelp": "Opcional: selecione uma zona para limpar. Clique novamente na zona selecionada para limpar a seleção e limpar todo o mapa.",
+        "requiredFields": "Escolha um dia e uma hora válida antes de guardar.",
+        "loadError": "Não foi possível carregar o agendamento. Tente novamente.",
+        "updateError": "Não foi possível atualizar o agendamento. As alterações não foram confirmadas; tente novamente.",
+        "refreshError": "O comando foi aceite, mas não foi possível confirmar o agendamento atualizado. Recarregue antes de fazer mais alterações.",
+        "deleteEvent": "Eliminar agendamento de {{day}} às {{time}}"
     },
     "map": {
         "maps": "Mapas",

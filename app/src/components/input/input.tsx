@@ -53,6 +53,8 @@ interface CustomInputProps {
 
 interface BaseInputProps {
     label?: string,
+    ariaLabel?: string,
+    disabled?: boolean,
     extraInfo?: React.ReactNode,
     skipSection?: true,
 }
@@ -67,6 +69,7 @@ export default function Input<T>(props: InputProps<T>) {
                 <input
                     className={styles.text}
                     type="text"
+                    aria-label={props.ariaLabel ?? props.label}
                     disabled={props.disabled}
                     value={props.value}
                     placeholder={props.placeholder}
@@ -78,6 +81,7 @@ export default function Input<T>(props: InputProps<T>) {
                 <input
                     className={styles.text}
                     type="time"
+                    aria-label={props.ariaLabel ?? props.label}
                     disabled={props.disabled}
                     value={props.value}
                     placeholder={props.placeholder}
@@ -90,12 +94,18 @@ export default function Input<T>(props: InputProps<T>) {
                     {props.options.map((option, i) => (
                         <button
                             key={i}
+                            type="button"
+                            aria-pressed={props.value === option.value}
+                            disabled={props.disabled}
                             className={`${styles.selectButton} ${props.value === option.value ? styles.activeSelectButton : ''}`}
                             onClick={(e) => {
                                 e.preventDefault();
-                                // TODO: look into how to type this properly with the allowdeselect
-                                props.allowDeselect && props.value === option.value ?
-                                    props.onChange(undefined as any) : props.onChange(option.value);
+                                if (props.allowDeselect && props.value === option.value) {
+                                    // Deselectable callers include undefined in T.
+                                    props.onChange(undefined as T)
+                                } else {
+                                    props.onChange(option.value)
+                                }
                             }}
                         >
                             {option.label}
@@ -133,6 +143,9 @@ export default function Input<T>(props: InputProps<T>) {
                     {props.options.map((option, i) => (
                         <button
                             key={i}
+                            type="button"
+                            aria-pressed={props.value.includes(option.value)}
+                            disabled={props.disabled}
                             className={`${styles.selectButton} ${props.value.includes(option.value) ? styles.activeSelectButton : ''}`}
                             onClick={(e) => {
                                 e.preventDefault();
@@ -155,6 +168,8 @@ export default function Input<T>(props: InputProps<T>) {
                     onMouseDown={(e) => e.stopPropagation()}>
                     <input
                         type="checkbox"
+                        aria-label={props.ariaLabel ?? props.label}
+                        disabled={props.disabled}
                         checked={props.value}
                         onChange={(e) => props.onChange(e.target.checked)}
                     />
