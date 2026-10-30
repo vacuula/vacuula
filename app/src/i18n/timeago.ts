@@ -9,6 +9,7 @@ import { DEFAULT_LANGUAGE } from './languages'
 const FORMATTERS: Record<string, Formatter> = {
     en: buildFormatter(enStrings),
     pt: buildFormatter(ptStrings),
+    nl: buildFormatter(ptStrings),
 }
 
 export function useTimeAgoFormatter(): Formatter {
