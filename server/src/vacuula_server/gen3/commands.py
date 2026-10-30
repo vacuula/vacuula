@@ -7,6 +7,7 @@ from vacuula_server.db import get_session
 from vacuula_server.generation import get_robot_by_serial, get_gen3_robot_data
 import json
 import time
+from threading import Lock
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +50,7 @@ def sign_cmd(robot_serial: str, cmd: str):
 
 
 req_id = 1
+req_id_lock = Lock()
 
 def send_chunk(wfile, payload_bytes):
     chunk = f"{len(payload_bytes):X}\r\n".encode() + payload_bytes + b"\r\n"
@@ -66,11 +68,13 @@ def build_heartbeat():
 def build_command(robot_serial: str, cmd: dict):
     global req_id
 
+    with req_id_lock:
+        command_req_id = req_id
+        req_id += 1
+
     payload = json.dumps({
-        "reqId": str(req_id),
-        **cmd
+        **cmd,
+        "reqId": str(command_req_id)
     }, ensure_ascii=False)
 
-    req_id += 1
-
-    return [(req_id - 1), sign_cmd(robot_serial, payload).encode()]
+    return [command_req_id, sign_cmd(robot_serial, payload).encode()]
