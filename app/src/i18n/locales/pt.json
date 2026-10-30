@@ -163,6 +163,7 @@
         "gen4UpdateBugHint": "NOTA: a modificação de mapas, zonas ou linhas pode desativar os agendamentos. Isto ocorre no firmware do robot, mas já estamos à procura de uma solução"
     },
     "settings": {
+        "nameSaveError": "Não foi possível guardar o nome. Tente novamente.",
         "serial": "N.º de série: {{serial}}",
         "birthday": "Data de fabrico: {{date}}",
         "robotSettings": "Definições do robot",

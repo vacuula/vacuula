@@ -169,6 +169,7 @@
         "gen4UpdateBugHint": "NOTE: modifying maps, zones, or lines may disable affected schedules. This is something that happens on the robot firmware, and we are looking into a workaround"
     },
     "settings": {
+        "nameSaveError": "Could not save name. Try again.",
         "serial": "Serial nr: {{serial}}",
         "birthday": "Birthday: {{date}}",
         "batteryCycles": "Battery cycles: {{cycles}}",

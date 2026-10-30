@@ -4,6 +4,9 @@ import styles from './input.module.scss'
 interface TextInputProps {
     type: 'text',
     onChange: (value: string) => void,
+    onFocus?: () => void,
+    onBlur?: () => void,
+    onKeyDown?: (event: React.KeyboardEvent<HTMLInputElement>) => void,
     value?: string,
     placeholder?: string,
     disabled?: boolean
@@ -70,7 +73,11 @@ export default function Input<T>(props: InputProps<T>) {
                     disabled={props.disabled}
                     value={props.value}
                     placeholder={props.placeholder}
+                    aria-label={props.label}
                     onChange={(e) => props.onChange(e.target.value)}
+                    onFocus={props.onFocus}
+                    onBlur={props.onBlur}
+                    onKeyDown={props.onKeyDown}
                 />
             )}
 
