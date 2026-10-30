@@ -306,7 +306,8 @@ export default function Home() {
                                 <IoMdPlay size={34} />
                             </button>
                         ) : (
-                            <button className={`${styles.start} ${!robot.availableCommands?.start ? styles.disabled : ''}`} aria-label={t('home.startCleaning')} onClick={async () => {
+                            <button className={`${styles.start} ${!robot.availableCommands?.start ? styles.disabled : ''}`} aria-label={t('home.startCleaning')} disabled={!robot.availableCommands?.start} onClick={async () => {
+                                if (!robot.availableCommands?.start) return
 
                                 // GEN3
                                 if (robot.type === RobotType.NeatoGen3) {
