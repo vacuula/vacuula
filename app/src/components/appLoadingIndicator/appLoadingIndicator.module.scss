@@ -1,0 +1,59 @@
+@use '../../variables.scss' as *;
+
+// Toast shown below the topbar. It is an absolutely positioned child of the app grid, so
+// placing it on the content rows anchors it right under the topbar pill, clear of the
+// status bar, whatever the device.
+.toast {
+    position: absolute;
+    grid-column: 1 / 2;
+    grid-row: 4 / 38;
+    justify-self: center;
+    align-self: start;
+    margin-top: 0.8rem;
+    z-index: 1000;
+    pointer-events: none;
+
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.8rem 1.6rem 0.8rem 1.2rem;
+    background: $surface;
+    border: 1px solid $border;
+    border-radius: 999px;
+    box-shadow: $shadow-md;
+    animation: toastIn 0.18s ease-out;
+}
+
+.ring {
+    width: 1.8rem;
+    height: 1.8rem;
+    flex: none;
+    border: 2px solid $accent-ring;
+    border-top-color: $accent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.message {
+    color: $text-primary;
+    font-size: 1.3rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes toastIn {
+    from {
+        opacity: 0;
+        transform: translateY(-0.6rem);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}

@@ -1,10 +1,15 @@
 import { useApp } from '../../context/useApp'
-import Spinner from '../spinner/spinner'
+import styles from './appLoadingIndicator.module.scss'
 
 export default function AppLoadingIndicator() {
     const { loadingState } = useApp()
 
     if (!loadingState?.isLoading) return null
 
-    return <Spinner size="small" position="fixed" message={loadingState?.message} />
+    return (
+        <div className={styles.toast} role="status">
+            <div className={styles.ring} />
+            {loadingState.message && <span className={styles.message}>{loadingState.message}</span>}
+        </div>
+    )
 }

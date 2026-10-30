@@ -5,11 +5,31 @@
     display: grid;
     grid-template-rows: repeat(40, 1fr);
     background-color: $bg;
-    height: 100dvh;
     width: 100%;
     overflow: hidden;
     // drawers and overlays are positioned relative to the app frame, not the viewport
     position: relative;
+
+    // Installed as a PWA with viewport-fit=cover and a translucent status bar the page
+    // is drawn under the notch, status bar and home indicator. Padding by the safe-area
+    // insets keeps the topbar/navbar clear of them while $bg still fills the whole screen.
+    // The grid rows split what is left inside the padding.
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    height: 100dvh;
+
+    // Installed on the iOS home screen, 100dvh (and innerHeight / fixed positioning) stops
+    // short of the screen bottom by the status bar height, which leaves a dead band under
+    // the navbar. 100vh is the full screen height there. In a regular browser tab 100vh is
+    // taller than the visible area, hence only in standalone mode.
+    @media (display-mode: standalone) {
+        height: 100vh;
+
+        // iOS softens the first ~14pt below the status bar with a scroll-edge effect;
+        // start the layout below it so the topbar border stays crisp.
+        @supports (-webkit-touch-callout: none) {
+            padding-top: calc(env(safe-area-inset-top) + 2rem);
+        }
+    }
 }
 
 // Wide screens (desktop browser): keep the phone-style layout in a narrow,
