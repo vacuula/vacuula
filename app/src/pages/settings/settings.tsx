@@ -28,22 +28,51 @@ export default () => {
     const { robot, updateRobotName, serverInfo } = useRobot()
 
     const [robotName, setRobotName] = useState(robot.name)
+    const [nameError, setNameError] = useState(false)
+    const editingName = useRef(false)
+    const pendingName = useRef<string | null>(null)
+    const previousName = useRef<string | null>(null)
+    const nameSerial = useRef(robot.serial)
+    const saveGeneration = useRef(0)
     const [selectedMapShape, setSelectedMapShape] = useState(loadSelectedMapShape())
 
     useEffect(() => {
-        setRobotName(robot.name)
-    }, [robot.name])
+        if (nameSerial.current !== robot.serial) {
+            nameSerial.current = robot.serial
+            saveGeneration.current++
+            editingName.current = false
+            pendingName.current = null
+            previousName.current = null
+            setNameError(false)
+            setRobotName(robot.name)
+        } else if (pendingName.current === robot.name && previousName.current === null) {
+            pendingName.current = null
+        } else if (pendingName.current === robot.name) {
+            // The first match may be optimistic, before inventory confirms the rename.
+            previousName.current = null
+        } else if (!editingName.current && pendingName.current === null) {
+            setRobotName(robot.name)
+        }
+    }, [robot.serial, robot.name])
 
-    useEffect(() => {
-        if (!robotName) return; // robot needs a name
-        if (robotName === robot.name) return
-
-        const timer = setTimeout(() => {
-            updateRobotName(robotName)
-        }, 500)
-
-        return () => clearTimeout(timer)
-    }, [robotName])
+    const saveRobotName = async () => {
+        editingName.current = false
+        if (!robotName.trim() || robotName === robot.name) return
+        const serial = robot.serial
+        const generation = ++saveGeneration.current
+        previousName.current = robot.name
+        pendingName.current = robotName
+        setNameError(false)
+        try {
+            await updateRobotName(robotName)
+        } catch {
+            if (nameSerial.current !== serial || saveGeneration.current !== generation) return
+            pendingName.current = null
+            previousName.current = null
+            editingName.current = true // keep the failed draft available for retry
+            setNameError(true)
+        }
+    }
 
     useEffect(() => {
         saveSelectedMapShape(selectedMapShape)
@@ -59,7 +88,10 @@ export default () => {
                     type="text"
                     label={t('common.name')}
                     value={robotName}
-                    onChange={setRobotName}
+                    onFocus={() => { editingName.current = true }}
+                    onChange={(name) => { saveGeneration.current++; editingName.current = true; setNameError(false); setRobotName(name) }}
+                    onBlur={saveRobotName}
+                    onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur() }}
                     extraInfo={(
                         <>
                             <span>{t('settings.serial', { serial: 'label_serial' in robot ? robot.label_serial : robot.serial })}</span>
@@ -67,6 +99,7 @@ export default () => {
                         </>
                     )}
                 />
+                {nameError && <span role="alert">{t('settings.nameSaveError')}</span>}
 
             </div>
 

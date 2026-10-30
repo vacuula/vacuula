@@ -47,6 +47,11 @@ const AppContext = createContext<AppContextType | undefined>(undefined)
 
 export function AppProvider({ children }: { children: ReactNode }) {
     const [robot, setRobot] = useState<Robot>()
+    const nameWrites = useRef(new Map<string, Promise<unknown>>())
+    const pendingNames = useRef(new Map<string, string>())
+    const committedNames = useRef(new Map<string, string>())
+    const robotRef = useRef(robot)
+    useEffect(() => { robotRef.current = robot }, [robot])
     const [robots, setRobots] = useState<QuickRobotInfo>()
     const [lastHeartbeat, setLastHeartbeat] = useState<number | undefined>()
     // const [persistentMaps, setPersistentMaps] = useState<PersistentMap[]>()
@@ -137,6 +142,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (!robot) return
         const serial = robot.serial
         const previousName = robot.name
+        if (!nameWrites.current.has(serial)) committedNames.current.set(serial, previousName)
+        pendingNames.current.set(serial, name)
 
         setRobot(cur => cur && cur.serial === serial ? { ...cur, name } : cur)
         setRobots(cur => {
@@ -144,14 +151,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
             return { ...cur, [serial]: { ...cur[serial], name } }
         })
 
+        const previousWrite = nameWrites.current.get(serial)
+        const write = previousWrite
+            ? previousWrite.catch(() => {}).then(() => Http.updateRobot(serial, { name }))
+            : Http.updateRobot(serial, { name })
+        nameWrites.current.set(serial, write)
         try {
-            await Http.updateRobot(serial, { name })
+            await write
+            committedNames.current.set(serial, name)
         } catch (err) {
-            setRobot(cur => cur && cur.serial === serial ? { ...cur, name: previousName } : cur)
-            setRobots(cur => {
-                if (!cur || !cur[serial]) return cur
-                return { ...cur, [serial]: { ...cur[serial], name: previousName } }
-            })
+            if (pendingNames.current.get(serial) === name && nameWrites.current.get(serial) === write) {
+                pendingNames.current.delete(serial)
+                const rollbackName = committedNames.current.get(serial) ?? previousName
+                setRobot(cur => cur && cur.serial === serial && cur.name === name ? { ...cur, name: rollbackName } : cur)
+                setRobots(cur => cur?.[serial]?.name === name
+                    ? { ...cur, [serial]: { ...cur[serial], name: rollbackName } } : cur)
+            }
+            throw err
+        } finally {
+            if (nameWrites.current.get(serial) === write) nameWrites.current.delete(serial)
         }
     }
 
@@ -174,6 +192,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const events = new EventSource(`${BASE_PATH}/api/events`);
         events.addEventListener('robots', (event) => {
             const data = JSON.parse(event.data) as QuickRobotInfo
+            const selected = robotRef.current
+            const pending = selected && pendingNames.current.get(selected.serial)
+            if (pending && !nameWrites.current.has(selected.serial) && data[selected.serial]?.name === pending) pendingNames.current.delete(selected.serial)
+            const protectedName = selected && pendingNames.current.get(selected.serial)
+            if (selected && protectedName && data[selected.serial]) {
+                data[selected.serial] = { ...data[selected.serial], name: protectedName }
+            }
             setRobots(data)
 
             // only auto select a robot if one is already not selected
