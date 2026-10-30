@@ -47,6 +47,8 @@ const AppContext = createContext<AppContextType | undefined>(undefined)
 
 export function AppProvider({ children }: { children: ReactNode }) {
     const [robot, setRobot] = useState<Robot>()
+    const robotRef = useRef(robot)
+    robotRef.current = robot
     const [robots, setRobots] = useState<QuickRobotInfo>()
     const [lastHeartbeat, setLastHeartbeat] = useState<number | undefined>()
     // const [persistentMaps, setPersistentMaps] = useState<PersistentMap[]>()
@@ -176,12 +178,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
             const data = JSON.parse(event.data) as QuickRobotInfo
             setRobots(data)
 
-            // only auto select a robot if one is already not selected
-            if (robot) return;
+            // This mount-only subscription must read the current selection.
+            const selected = robotRef.current
+            const selectedInfo = selected && data[selected.serial]
+            if (selected && selectedInfo?.connected && selectedInfo.type === selected.type) {
+                // Merge inventory metadata into the latest telemetry, not the render's snapshot.
+                setRobot(cur => {
+                    if (!cur || cur.serial !== selected.serial || cur.type !== selectedInfo.type) return cur
+                    if (cur.type === RobotType.NeatoGen4) {
+                        const label_serial = selectedInfo.label_serial ?? cur.label_serial
+                        return cur.name === selectedInfo.name && cur.label_serial === label_serial
+                            ? cur : { ...cur, name: selectedInfo.name, label_serial }
+                    }
+                    return cur.name === selectedInfo.name ? cur : { ...cur, name: selectedInfo.name }
+                })
+                return;
+            }
             const last = localStorage.getItem('vacuula.selectedRobot')
             const entries = Object.entries(data)
             const firstOnline = entries.find(([s, info]) => s === last && info.connected) ?? entries.find(([, info]) => info.connected)
             if (firstOnline) connectToRobot(data, firstOnline[0], firstOnline[1].type, firstOnline[1].name)
+            else setRobot(undefined)
         })
         events.onerror = (err) => console.error('events stream error:', err)
         return () => events.close()
