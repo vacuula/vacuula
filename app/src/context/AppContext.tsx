@@ -47,6 +47,8 @@ const AppContext = createContext<AppContextType | undefined>(undefined)
 
 export function AppProvider({ children }: { children: ReactNode }) {
     const [robot, setRobot] = useState<Robot>()
+    const robotRef = useRef(robot)
+    robotRef.current = robot
     const [robots, setRobots] = useState<QuickRobotInfo>()
     const [lastHeartbeat, setLastHeartbeat] = useState<number | undefined>()
     // const [persistentMaps, setPersistentMaps] = useState<PersistentMap[]>()
@@ -176,12 +178,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
             const data = JSON.parse(event.data) as QuickRobotInfo
             setRobots(data)
 
-            // only auto select a robot if one is already not selected
-            if (robot) return;
+            // This mount-only subscription must read the current selection.
+            const selected = robotRef.current
+            if (selected && data[selected.serial]?.connected) return;
             const last = localStorage.getItem('vacuula.selectedRobot')
             const entries = Object.entries(data)
             const firstOnline = entries.find(([s, info]) => s === last && info.connected) ?? entries.find(([, info]) => info.connected)
             if (firstOnline) connectToRobot(data, firstOnline[0], firstOnline[1].type, firstOnline[1].name)
+            else setRobot(undefined)
         })
         events.onerror = (err) => console.error('events stream error:', err)
         return () => events.close()
