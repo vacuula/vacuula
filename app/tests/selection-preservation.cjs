@@ -52,7 +52,7 @@ function fixture(inventory, saved) {
       getServerInfo: async () => ({ data: {} }), getRobots: async () => ({ data: inventory }) } },
     '../http/gen3': { GEN3_COMMANDS: { getRobotState: getState(3) } },
     '../http/gen4': { GEN4_COMMANDS: { getRobotState: getState(4) } },
-    '../types': { RobotType: RT }, '../types/neato/gen4': { OrbitalServices: {} },
+    '../types': { RobotType: RT }, '../types/neato/gen4': { OrbitalServices: { PEER_STATE: 'peer-state' } },
     '../loaders/resources': { persistentMapsLoader: { request: async serial => { maps.push(serial); } } },
     '../theme': { useTheme: () => ({ isDark: false, setTheme: noop }) },
     '../pages/loading/loading': { default: noop },
@@ -77,6 +77,16 @@ function fixture(inventory, saved) {
   }
   const value = () => tree.props.value;
   return { settle, value, streams, requests, maps, transitions, storage,
+    queueTelemetry(type) {
+      const telemetry = { availableCommands: { stop: true }, details: { battery: 73 },
+        state: 2, action: 1, alert: 'fresh-alert', error: 'fresh-error' };
+      const data = type === RT.NeatoGen3 ? { type: 'state', data: telemetry }
+        : { to: { service: 'peer-state' }, body: { ...telemetry,
+          available_commands: telemetry.availableCommands, errors: ['fresh-error'] } };
+      streams.find(s => s.url === '/api/robot/B/connect' && !s.closed).onmessage({
+        data: JSON.stringify({ serial: 'B', type, data }),
+      }); // Deliberately do not render: the inventory callback still sees the previous ref.
+    },
     async emit(data) {
       streams.find(s => s.url === '/api/events' && !s.closed).listeners.robots({ data: JSON.stringify(data) });
       if (dirty) render(); // Observe the synchronous clear before state-request promises resolve.
@@ -109,6 +119,47 @@ for (const type of Object.values(RT)) {
     assert.equal(f.requests.length, calls); assert.equal(f.maps.length, mapCalls);
     assert.equal(f.streams.length, streamCount);
     assert.equal(f.streams.find(s => s.url === '/api/robot/B/connect').closed, false);
+  });
+  for (const field of type === RT.NeatoGen4 ? ['name', 'label_serial'] : ['name']) {
+    test(`${type}: incoming selected ${field} reconciles latest telemetry without refetch or stream reset`, async () => {
+      const f = fixture(info(type), 'B'); await f.settle();
+      const selected = f.value().robot, start = f.transitions.length;
+      const calls = f.requests.length, mapCalls = f.maps.length, streamCount = f.streams.length;
+      const stream = f.streams.find(s => s.url === '/api/robot/B/connect');
+      f.queueTelemetry(type);
+      const inventory = info(type); inventory.B[field] = 'remote-update';
+      await f.emit(inventory);
+      const current = f.value().robot;
+      assert.equal(current[field], 'remote-update');
+      assert.notEqual(current, selected);
+      assert.equal(current.type, type); assert.equal(current.serial, 'B');
+      assert.equal(current[field === 'name' ? 'label_serial' : 'name'], selected[field === 'name' ? 'label_serial' : 'name']);
+      assert.equal(current.state, 2); assert.equal(current.action, 1);
+      assert.deepEqual(JSON.parse(JSON.stringify(current.details)), { battery: 73 });
+      assert.deepEqual(JSON.parse(JSON.stringify(current.availableCommands)), { stop: true });
+      if (type === RT.NeatoGen3) {
+        assert.equal(current.alert, 'fresh-alert'); assert.equal(current.error, 'fresh-error');
+      } else assert.deepEqual(Array.from(current.errors), ['fresh-error']);
+      assert(f.transitions.slice(start).every(r => r?.serial === 'B' && r.type === type));
+      assert.equal(f.requests.length, calls); assert.equal(f.maps.length, mapCalls);
+      assert.equal(f.streams.length, streamCount); assert.equal(stream.closed, false);
+      assert.equal(f.storage.get('vacuula.selectedRobot'), 'B');
+      await f.emit(inventory); assert.equal(f.value().robot, current, 'repeated metadata retains identity');
+    });
+  }
+  test(`${type}: selected type identity change reconnects using the incoming generation`, async () => {
+    const f = fixture(info(type), 'B'); await f.settle();
+    const stream = f.streams.find(s => s.url === '/api/robot/B/connect');
+    const nextType = type === RT.NeatoGen3 ? RT.NeatoGen4 : RT.NeatoGen3;
+    const inventory = info(type); inventory.B = { ...inventory.B, type: nextType, name: 'new-generation' };
+    const start = f.transitions.length;
+    await f.emit(inventory);
+    assert.equal(f.value().robot.type, nextType); assert.equal(f.value().robot.name, 'new-generation');
+    assert.equal(f.value().robot.serial, 'B'); assert.equal(stream.closed, true);
+    assert(f.transitions.slice(start).includes(undefined));
+    assert.deepEqual(f.requests.map(r => r.gen), type === RT.NeatoGen3 ? [3, 4] : [4, 3]);
+    assert.deepEqual(f.maps, ['B', 'B']);
+    assert.equal(f.streams.filter(s => s.url === '/api/robot/B/connect' && !s.closed).length, 1);
   });
   test(`${type}: explicit switching still clears old selection and changes stream`, async () => {
     const f = fixture(info(type)); await f.settle(); const start = f.transitions.length;

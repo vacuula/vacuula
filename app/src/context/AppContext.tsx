@@ -180,7 +180,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
             // This mount-only subscription must read the current selection.
             const selected = robotRef.current
-            if (selected && data[selected.serial]?.connected) return;
+            const selectedInfo = selected && data[selected.serial]
+            if (selected && selectedInfo?.connected && selectedInfo.type === selected.type) {
+                // Merge inventory metadata into the latest telemetry, not the render's snapshot.
+                setRobot(cur => {
+                    if (!cur || cur.serial !== selected.serial || cur.type !== selectedInfo.type) return cur
+                    if (cur.type === RobotType.NeatoGen4) {
+                        const label_serial = selectedInfo.label_serial ?? cur.label_serial
+                        return cur.name === selectedInfo.name && cur.label_serial === label_serial
+                            ? cur : { ...cur, name: selectedInfo.name, label_serial }
+                    }
+                    return cur.name === selectedInfo.name ? cur : { ...cur, name: selectedInfo.name }
+                })
+                return;
+            }
             const last = localStorage.getItem('vacuula.selectedRobot')
             const entries = Object.entries(data)
             const firstOnline = entries.find(([s, info]) => s === last && info.connected) ?? entries.find(([, info]) => info.connected)
