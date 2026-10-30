@@ -70,6 +70,7 @@
     },
     "home": {
         "errorTitle": "Erro",
+        "commandError": "O comando falhou ou não foi possível confirmá-lo. Verifique o estado do robot antes de tentar novamente.",
         "error": {
             "invalid": "Info",
             "warning": "Atenção",
