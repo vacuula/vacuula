@@ -39,11 +39,12 @@ interface AlertCardProps {
     onClick?: () => void
     visible?: boolean
     robotType: RobotType
+    role?: 'alert'
 }
-function AlertCard({ type = 'error', icon, title, sub, action, onClick, visible = true, robotType }: AlertCardProps) {
+function AlertCard({ type = 'error', icon, title, sub, action, onClick, visible = true, robotType, role }: AlertCardProps) {
     const { t } = useTranslation()
     return (
-        <div className={`${styles.alertCard} ${styles[type]}`} style={{ visibility: visible ? 'visible' : 'hidden' }}>
+        <div role={role} className={`${styles.alertCard} ${styles[type]}`} style={{ visibility: visible ? 'visible' : 'hidden' }}>
             <div className={styles.alertIconWrap}>
                 {icon}
             </div>
@@ -104,6 +105,17 @@ export default function Home() {
     const { formatLength } = useUnits()
     const { mascot } = useMascot()
     const [categoryDrawerOpen, setCategoryDrawerOpen] = useState(false)
+    const [commandFailed, setCommandFailed] = useState(false)
+
+    // HTTP rejects robot errors as well as transport failures. Keep the whole
+    // action (including delayed commands) inside this boundary, without retrying.
+    const runCommand = async (action: () => Promise<unknown>) => {
+        try {
+            await action()
+        } catch {
+            setCommandFailed(true)
+        }
+    }
 
     // TODO: make functions of this to fetch easily etc
     const [gen3__cleaningMode, gen3__setCleaningMode] = useState<CleaningMode>(getGen3CleaningMode())
@@ -158,6 +170,14 @@ export default function Home() {
 
             {/* ── Alerts ── */}
             <div className={styles.alerts}>
+                {commandFailed && <AlertCard
+                    role="alert"
+                    icon={<MdError size={17} />}
+                    title={t('home.commandError')}
+                    action={t('home.dismissAlert')}
+                    onClick={() => setCommandFailed(false)}
+                    robotType={robot.type}
+                />}
                 {robot.type === RobotType.NeatoGen4 && robot.errors && <Gen4AlertCards errors={robot.errors} />}
 
                 {robot.type === RobotType.NeatoGen3 && (
@@ -178,12 +198,10 @@ export default function Home() {
                             sub={robot.alert}
                             robotType={RobotType.NeatoGen3}
                             action={t('home.dismissAlert')}
-                            onClick={() => {
-                                GEN3_COMMANDS.dismissCurrentAlert(robot.serial).then((data) => {
-                                    // TODO: type and so!
-                                    if (data.data.result === 'ok') getGen3State(robot.serial, robot.name)
-                                })
-                            }}
+                            onClick={() => runCommand(async () => {
+                                await GEN3_COMMANDS.dismissCurrentAlert(robot.serial)
+                                await getGen3State(robot.serial, robot.name)
+                            })}
                         />
                     </>
                 )}
@@ -231,12 +249,17 @@ export default function Home() {
                         icon={<FaBell size={22} className={bellAnimating ? styles.bellIcon : ''} />}
                         selection={t('home.locate')}
                         label={t('home.btnExplain.locate')}
-                        onClick={() => {
+                        onClick={() => runCommand(async () => {
                             setBellAnimating(true);
-                            (robot.type === RobotType.NeatoGen3 ? GEN3_COMMANDS : GEN4_COMMANDS).findMe(robot.serial);
                             // Reset animation after all 5 swings complete
                             setTimeout(() => setBellAnimating(false), BELL_MS)
-                        }}
+                            try {
+                                await (robot.type === RobotType.NeatoGen3 ? GEN3_COMMANDS : GEN4_COMMANDS).findMe(robot.serial)
+                            } catch (error) {
+                                setBellAnimating(false)
+                                throw error
+                            }
+                        })}
                     />
 
                     <CtrlBtn icon={
@@ -285,24 +308,24 @@ export default function Home() {
                     <CtrlBtn disabled={
                         robot.type === RobotType.NeatoGen3 ? !robot.availableCommands.stop :
                             robot.type === RobotType.NeatoGen4 ? !robot.availableCommands.cancel : true
-                    } icon={<FaStop size={22} />} selection={t('home.stop')} onClick={() => {
-                        (robot.type === RobotType.NeatoGen3 ? GEN3_COMMANDS : GEN4_COMMANDS).stopCleaning(robot.serial);
-                    }} />
+                    } icon={<FaStop size={22} />} selection={t('home.stop')} onClick={() => runCommand(() =>
+                        (robot.type === RobotType.NeatoGen3 ? GEN3_COMMANDS : GEN4_COMMANDS).stopCleaning(robot.serial)
+                    )} />
 
 
                     {robot.availableCommands.pause ? (
-                        <button className={`${styles.start} ${!robot.availableCommands.pause ? styles.disabled : ''}`} aria-label={t('home.pauseCleaning')} onClick={() => {
-                            (robot.type === RobotType.NeatoGen3 ? GEN3_COMMANDS : GEN4_COMMANDS).pauseCleaning(robot.serial);
-                        }}>
+                        <button className={`${styles.start} ${!robot.availableCommands.pause ? styles.disabled : ''}`} aria-label={t('home.pauseCleaning')} onClick={() => runCommand(() =>
+                            (robot.type === RobotType.NeatoGen3 ? GEN3_COMMANDS : GEN4_COMMANDS).pauseCleaning(robot.serial)
+                        )}>
                             <IoMdPause size={34} />
                         </button>
 
                     ) :
 
                         robot.availableCommands?.resume ? (
-                            <button className={`${styles.start} ${!robot.availableCommands?.resume ? styles.disabled : ''}`} aria-label={t('home.resumeCleaning')} onClick={() => {
+                            <button className={`${styles.start} ${!robot.availableCommands?.resume ? styles.disabled : ''}`} aria-label={t('home.resumeCleaning')} onClick={() => runCommand(() =>
                                 (robot.type === RobotType.NeatoGen3 ? GEN3_COMMANDS : GEN4_COMMANDS).resumeCleaning(robot.serial)
-                            }}>
+                            )}>
                                 <IoMdPlay size={34} />
                             </button>
                         ) : (
@@ -311,7 +334,7 @@ export default function Home() {
                                 // GEN3
                                 if (robot.type === RobotType.NeatoGen3) {
                                     if (gen3__cleaningCategory === CleaningCategory.SPOT) {
-                                        GEN3_COMMANDS.startCleaningSpot(robot.serial, spotHeight, spotWidth, gen3__cleaningMode, gen3__navigationMode)
+                                        await runCommand(() => GEN3_COMMANDS.startCleaningSpot(robot.serial, spotHeight, spotWidth, gen3__cleaningMode, gen3__navigationMode))
                                         return;
                                     }
 
@@ -324,10 +347,10 @@ export default function Home() {
                                     // TODO: gen3 has no mutlizone yet
                                     if (cat === CleaningCategory.MAP && selectedZones.length === 1 && isDocked(robot)) {
                                         const [mapId, zoneId] = selectedZones[0].split('||:||')
-                                        GEN3_COMMANDS.startCleaningZone(robot.serial, mapId, zoneId, gen3__cleaningMode, gen3__navigationMode)
+                                        await runCommand(() => GEN3_COMMANDS.startCleaningZone(robot.serial, mapId, zoneId, gen3__cleaningMode, gen3__navigationMode))
                                         return
                                     }
-                                    GEN3_COMMANDS.startCleaning(robot.serial, cat, gen3__cleaningMode, gen3__navigationMode)
+                                    await runCommand(() => GEN3_COMMANDS.startCleaning(robot.serial, cat, gen3__cleaningMode, gen3__navigationMode))
 
 
 
@@ -335,11 +358,11 @@ export default function Home() {
                                 } else if (robot.type === RobotType.NeatoGen4) {
                                     // stuff is technically for gen3, but will piggyback of it for now, later make its own separate things? TODO
                                     if (gen3__cleaningCategory === CleaningCategory.HOUSE || !promotedFloorplan) {
-                                        GEN4_COMMANDS.startCleaning(robot.serial, gen4__cleaningMode, gen4__navigationMode)
+                                        await runCommand(() => GEN4_COMMANDS.startCleaning(robot.serial, gen4__cleaningMode, gen4__navigationMode))
                                         return
                                     }
 
-                                    GEN4_COMMANDS.startCleaning(robot.serial, gen4__cleaningMode, gen4__navigationMode, promotedFloorplan?.id, nogoEnabled, selectedZones)
+                                    await runCommand(() => GEN4_COMMANDS.startCleaning(robot.serial, gen4__cleaningMode, gen4__navigationMode, promotedFloorplan?.id, nogoEnabled, selectedZones))
                                 }
                             }}>
                                 <IoMdPlay size={34} />
@@ -361,15 +384,14 @@ export default function Home() {
                         }
                         icon={<TbHome size={22} />}
                         selection={t('home.base')}
-                        onClick={() => {
+                        onClick={() => runCommand(async () => {
                             if (robot.availableCommands.pause) {
-                                (robot.type === RobotType.NeatoGen3 ? GEN3_COMMANDS : GEN4_COMMANDS).pauseCleaning(robot.serial).then(() => {
-                                    setTimeout(() => {
-                                        (robot.type === RobotType.NeatoGen3 ? GEN3_COMMANDS : GEN4_COMMANDS).sendToBase(robot.serial);
-                                    }, 3500) // pulled my my arsle, more trial and error needed here! TODO: flag based actions, not in initial release however
-                                })
-                            } else (robot.type === RobotType.NeatoGen3 ? GEN3_COMMANDS : GEN4_COMMANDS).sendToBase(robot.serial);
-                        }} />
+                                await (robot.type === RobotType.NeatoGen3 ? GEN3_COMMANDS : GEN4_COMMANDS).pauseCleaning(robot.serial)
+                                // Preserve the existing pause-to-Base delay.
+                                await new Promise(resolve => setTimeout(resolve, 3500))
+                            }
+                            await (robot.type === RobotType.NeatoGen3 ? GEN3_COMMANDS : GEN4_COMMANDS).sendToBase(robot.serial)
+                        })} />
                 </div>
 
 
