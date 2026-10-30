@@ -122,6 +122,7 @@ def upload_finish(req: RouterHandler, upload_type:Literal["maps", "logs"], job_i
     if not data.get('success'):
         logger.error("Upload failed for robot %s, job %s", serial, job_id)
         req.send_bad_request("You said upload failed?")
+        return
     
     
     # we can now close the request to robot when we are getting logs
