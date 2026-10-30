@@ -15,6 +15,7 @@ const info = type => ({ A: { type, name: 'A', connected: true, label_serial: 'la
   B: { type, name: 'B', connected: true, label_serial: 'label-B' } });
 function fixture(inventory, saved) {
   let cursor = 0, dirty = true, tree;
+  let clock = 1000;
   const slots = [], pendingEffects = [], streams = [], requests = [], maps = [], transitions = [], writes = [];
   const storage = new Map(saved ? [['vacuula.selectedRobot', saved]] : []);
   const react = {
@@ -63,6 +64,7 @@ function fixture(inventory, saved) {
   };
   const module = { exports: {} };
   vm.runInNewContext(code, { module, exports: module.exports, console, EventSource: Events,
+    Date: class extends Date { static now() { return clock; } },
     localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) },
     require: id => { if (Object.hasOwn(mocks, id)) return mocks[id]; throw Error('Forbidden import: ' + id); },
   }, { filename: source });
@@ -78,6 +80,7 @@ function fixture(inventory, saved) {
   }
   const value = () => tree.props.value;
   return { settle, value, streams, requests, maps, transitions, storage, writes,
+    advance(ms) { clock += ms; },
     queueTelemetry(type) {
       const telemetry = { availableCommands: { stop: true }, details: { battery: 73 },
         state: 2, action: 1, alert: 'fresh-alert', error: 'fresh-error' };
@@ -97,6 +100,41 @@ function fixture(inventory, saved) {
   };
 }
 for (const type of Object.values(RT)) {
+  test(`${type}: absent confirmation cannot hide an external rename forever`, async () => {
+    const f = fixture(info(type), 'B'); await f.settle();
+    const saving = f.value().updateRobotName('New name'); await f.settle();
+    f.writes[0].resolve(); await saving; await f.settle();
+    await f.emit(info(type)); assert.equal(f.value().robot.name, 'New name');
+    f.advance(31_000);
+    const changed = info(type); changed.B.name = 'Remote';
+    await f.emit(changed);
+    assert.equal(f.value().robot.name, 'Remote');
+  });
+  test(`${type}: inventory confirmation during HTTP write releases guard on success`, async () => {
+    const f = fixture(info(type), 'B'); await f.settle();
+    const saving = f.value().updateRobotName('New name'); await f.settle();
+    const confirmed = info(type); confirmed.B.name = 'New name';
+    await f.emit(confirmed);
+    f.writes[0].resolve(); await saving; await f.settle();
+    const changed = info(type); changed.B.name = 'Remote';
+    await f.emit(changed);
+    assert.equal(f.value().robot.name, 'Remote');
+    assert.equal(f.value().robots.B.name, 'Remote');
+  });
+  test(`${type}: confirmation for another robot while selected robot changes`, async () => {
+    const f = fixture(info(type), 'B'); await f.settle();
+    const saving = f.value().updateRobotName('New name'); await f.settle();
+    await f.select('A');
+    const stale = info(type); await f.emit(stale);
+    assert.equal(f.value().robots.B.name, 'New name');
+    const confirmed = info(type); confirmed.B.name = 'New name';
+    await f.emit(confirmed);
+    f.writes[0].resolve(); await saving; await f.settle();
+    const changed = info(type); changed.B.name = 'Remote';
+    await f.emit(changed);
+    assert.equal(f.value().robots.B.name, 'Remote');
+    await f.select('B'); assert.equal(f.value().robot.name, 'Remote');
+  });
   test(`${type}: optimistic rename ignores stale inventory until confirmed`, async () => {
     const f = fixture(info(type), 'B'); await f.settle();
     const saving = f.value().updateRobotName('New name'); await f.settle();

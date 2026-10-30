@@ -48,7 +48,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined)
 export function AppProvider({ children }: { children: ReactNode }) {
     const [robot, setRobot] = useState<Robot>()
     const nameWrites = useRef(new Map<string, Promise<unknown>>())
-    const pendingNames = useRef(new Map<string, string>())
+    const pendingNames = useRef(new Map<string, { name: string, confirmed: boolean, expiresAt?: number }>())
     const committedNames = useRef(new Map<string, string>())
     const robotRef = useRef(robot)
     useEffect(() => { robotRef.current = robot }, [robot])
@@ -143,7 +143,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const serial = robot.serial
         const previousName = robot.name
         if (!nameWrites.current.has(serial)) committedNames.current.set(serial, previousName)
-        pendingNames.current.set(serial, name)
+        pendingNames.current.set(serial, { name, confirmed: false })
 
         setRobot(cur => cur && cur.serial === serial ? { ...cur, name } : cur)
         setRobots(cur => {
@@ -159,8 +159,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         try {
             await write
             committedNames.current.set(serial, name)
+            const pending = pendingNames.current.get(serial)
+            if (nameWrites.current.get(serial) === write && pending?.name === name) {
+                if (pending.confirmed) pendingNames.current.delete(serial)
+                else pending.expiresAt = Date.now() + 30_000
+            }
         } catch (err) {
-            if (pendingNames.current.get(serial) === name && nameWrites.current.get(serial) === write) {
+            if (pendingNames.current.get(serial)?.name === name && nameWrites.current.get(serial) === write) {
                 pendingNames.current.delete(serial)
                 const rollbackName = committedNames.current.get(serial) ?? previousName
                 setRobot(cur => cur && cur.serial === serial && cur.name === name ? { ...cur, name: rollbackName } : cur)
@@ -192,17 +197,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const events = new EventSource(`${BASE_PATH}/api/events`);
         events.addEventListener('robots', (event) => {
             const data = JSON.parse(event.data) as QuickRobotInfo
-            const selected = robotRef.current
-            const pending = selected && pendingNames.current.get(selected.serial)
-            if (pending && !nameWrites.current.has(selected.serial) && data[selected.serial]?.name === pending) pendingNames.current.delete(selected.serial)
-            const protectedName = selected && pendingNames.current.get(selected.serial)
-            if (selected && protectedName && data[selected.serial]) {
-                data[selected.serial] = { ...data[selected.serial], name: protectedName }
+            for (const [serial, pending] of pendingNames.current) {
+                if (!data[serial]) continue
+                if (pending.expiresAt !== undefined && Date.now() >= pending.expiresAt) {
+                    pendingNames.current.delete(serial)
+                    continue
+                }
+                if (data[serial].name === pending.name) {
+                    pending.confirmed = true
+                    if (!nameWrites.current.has(serial)) pendingNames.current.delete(serial)
+                } else {
+                    data[serial] = { ...data[serial], name: pending.name }
+                }
             }
             setRobots(data)
 
+            const selected = robotRef.current
+            const selectedInfo = selected && data[selected.serial]
+            if (selected && selectedInfo?.connected && selectedInfo.type === selected.type) {
+                setRobot(cur => cur?.serial === selected.serial && cur.name !== selectedInfo.name
+                    ? { ...cur, name: selectedInfo.name } : cur)
+                return
+            }
             // only auto select a robot if one is already not selected
-            if (robot) return;
             const last = localStorage.getItem('vacuula.selectedRobot')
             const entries = Object.entries(data)
             const firstOnline = entries.find(([s, info]) => s === last && info.connected) ?? entries.find(([, info]) => info.connected)

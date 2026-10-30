@@ -31,7 +31,6 @@ export default () => {
     const [nameError, setNameError] = useState(false)
     const editingName = useRef(false)
     const pendingName = useRef<string | null>(null)
-    const previousName = useRef<string | null>(null)
     const nameSerial = useRef(robot.serial)
     const saveGeneration = useRef(0)
     const [selectedMapShape, setSelectedMapShape] = useState(loadSelectedMapShape())
@@ -42,14 +41,8 @@ export default () => {
             saveGeneration.current++
             editingName.current = false
             pendingName.current = null
-            previousName.current = null
             setNameError(false)
             setRobotName(robot.name)
-        } else if (pendingName.current === robot.name && previousName.current === null) {
-            pendingName.current = null
-        } else if (pendingName.current === robot.name) {
-            // The first match may be optimistic, before inventory confirms the rename.
-            previousName.current = null
         } else if (!editingName.current && pendingName.current === null) {
             setRobotName(robot.name)
         }
@@ -60,15 +53,14 @@ export default () => {
         if (!robotName.trim() || robotName === robot.name) return
         const serial = robot.serial
         const generation = ++saveGeneration.current
-        previousName.current = robot.name
         pendingName.current = robotName
         setNameError(false)
         try {
             await updateRobotName(robotName)
+            if (nameSerial.current === serial && saveGeneration.current === generation) pendingName.current = null
         } catch {
             if (nameSerial.current !== serial || saveGeneration.current !== generation) return
             pendingName.current = null
-            previousName.current = null
             editingName.current = true // keep the failed draft available for retry
             setNameError(true)
         }
