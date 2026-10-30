@@ -72,6 +72,12 @@ GEN4_ENABLED: bool = _get_bool_env("GEN4_ENABLED", True)
 MDNS_ENABLED: bool = _get_bool_env("MDNS_ENABLED", True)
 HOST_IP: str = _get_str_env("HOST_IP", "0.0.0.0")
 LOG_LEVEL: str = _get_str_env("LOG_LEVEL", "INFO").upper()
+# How long (seconds) data sent to a Gen3 robot may stay unacknowledged before the kernel drops
+# the connection (TCP_USER_TIMEOUT). Short Wi-Fi stalls longer than this disconnect the robot.
+GEN3_TCP_USER_TIMEOUT_S: int = _get_int_env("GEN3_TCP_USER_TIMEOUT_S", 20)
+# How long (seconds) of no incoming data from a Gen3 robot on an idle connection before closing the socket.
+# Neato Gen3 robots heartbeat every 60s; 120s allows headroom for Wi-Fi DTIM power-save sleep and map I/O.
+GEN3_SOCKET_TIMEOUT_S: int = _get_int_env("GEN3_SOCKET_TIMEOUT_S", 120)
 
 # HA Ingress stuff
 # By config.yaml default for this value will be true, but others not running via HA App it never even has to pass this check
@@ -95,6 +101,16 @@ if not (1 <= GEN4_PORT <= 65535 and 1 <= VACUULA_PORT <= 65535):
     raise ValueError(
         "GEN4_PORT and VACUULA_PORT must be in port range (1-65535). "
         f"Got GEN4_PORT={GEN4_PORT}, VACUULA_PORT={VACUULA_PORT}"
+    )
+if not (5 <= GEN3_TCP_USER_TIMEOUT_S <= 600):
+    raise ValueError(
+        "GEN3_TCP_USER_TIMEOUT_S must be between 5 and 600 seconds. "
+        f"Got GEN3_TCP_USER_TIMEOUT_S={GEN3_TCP_USER_TIMEOUT_S}"
+    )
+if not (10 <= GEN3_SOCKET_TIMEOUT_S <= 1800):
+    raise ValueError(
+        "GEN3_SOCKET_TIMEOUT_S must be between 10 and 1800 seconds. "
+        f"Got GEN3_SOCKET_TIMEOUT_S={GEN3_SOCKET_TIMEOUT_S}"
     )
 
 

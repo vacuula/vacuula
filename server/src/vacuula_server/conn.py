@@ -10,6 +10,7 @@ class Gen2Gen3Conn:
     def __init__(self, password: str, wfile: StreamRequestHandler.wfile):
         self.password = password
         self.wfile = wfile
+        self.write_lock = threading.Lock()
 
 class Gen4Conn:
     def __init__(self, socket: SSLSocket):

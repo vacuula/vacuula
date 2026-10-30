@@ -1,12 +1,12 @@
 from __future__ import annotations
-import hmac
 import hashlib
-from datetime import datetime, timezone
-import logging
-from vacuula_server.db import get_session
-from vacuula_server.generation import get_robot_by_serial, get_gen3_robot_data
+import hmac
+import itertools
 import json
+import logging
 import time
+from datetime import datetime, timezone
+from vacuula_server.generation import get_gen3_robot_data
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +48,7 @@ def sign_cmd(robot_serial: str, cmd: str):
     return date + "|" + signature + "\r\n" + cmd
 
 
-req_id = 1
+_req_counter = itertools.count(1)
 
 def send_chunk(wfile, payload_bytes):
     chunk = f"{len(payload_bytes):X}\r\n".encode() + payload_bytes + b"\r\n"
@@ -64,13 +64,11 @@ def build_heartbeat():
 
 
 def build_command(robot_serial: str, cmd: dict):
-    global req_id
+    req_num = next(_req_counter)
 
     payload = json.dumps({
-        "reqId": str(req_id),
+        "reqId": str(req_num),
         **cmd
     }, ensure_ascii=False)
 
-    req_id += 1
-
-    return [(req_id - 1), sign_cmd(robot_serial, payload).encode()]
+    return [req_num, sign_cmd(robot_serial, payload).encode()]
