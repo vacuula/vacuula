@@ -1,5 +1,5 @@
 import styles from './settings.module.scss'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Input from '../../components/input/input'
 import { Neato, RobotType } from '../../types'
 import { GEN4_COMMANDS } from '../../http/gen4'
@@ -8,6 +8,7 @@ import Button from '../../components/button/button'
 import { FaDiscord, FaGithub } from 'react-icons/fa'
 import { SiBuymeacoffee, SiKofi } from 'react-icons/si'
 import { GEN3_COMMANDS } from '../../http/gen3'
+import { RobotApiResult } from '../../types/neato/gen3/api'
 import { useTranslation } from 'react-i18next'
 import { APP_LANGUAGES, DEFAULT_LANGUAGE } from '../../i18n/languages'
 import { THEME_MODES, useTheme, type ThemeMode } from '../../theme'
@@ -16,7 +17,6 @@ import { MASCOTS, useMascot } from '../../mascot'
 import { GrCertificate } from 'react-icons/gr'
 import { VscFeedback } from 'react-icons/vsc'
 import { FaFileLines } from 'react-icons/fa6'
-import type { UseState } from '../../components/map/types'
 import { loadSelectedMapShape, saveSelectedMapShape, MAPSHAPES } from './mapshapes'
 
 export default () => {
@@ -75,7 +75,7 @@ export default () => {
             <div className={styles.featureList}>
                 <b>{t('settings.robotSettings')}</b>
                 {robot.type === RobotType.NeatoGen4 && <Gen4RobotSettings />}
-                {robot.type === RobotType.NeatoGen3 && <Gen3RobotSettings />}
+                {robot.type === RobotType.NeatoGen3 && <Gen3RobotSettings key={robot.serial} />}
             </div>
 
             <hr style={{ width: '95%' }} />
@@ -255,43 +255,87 @@ const Gen3RobotSettings = () => {
     const { robot } = useRobot()
 
     const [preferences, setPreferences] = useState<Neato.Gen3.Preferences | undefined>(undefined)
-    const isInitialLoad = useRef(true)
+    const [loadError, setLoadError] = useState(false)
+    const [saveError, setSaveError] = useState(false)
+    const [saving, setSaving] = useState(false)
+    const latest = useRef<Neato.Gen3.Preferences | undefined>(undefined)
+    const writing = useRef(false)
+    const active = useRef(true)
 
+    const matches = (a: Neato.Gen3.Preferences, b: Neato.Gen3.Preferences) =>
+        a.robotSounds === b.robotSounds &&
+        a.dirtbinAlertReminderInterval === b.dirtbinAlertReminderInterval &&
+        a.filterChangeReminderInterval === b.filterChangeReminderInterval &&
+        a.brushChangeReminderInterval === b.brushChangeReminderInterval
 
-    useEffect(() => {
-        getPreferences();
-    }, []);
-
-    const getPreferences = () => GEN3_COMMANDS.getPreferences(robot.serial).then(res => {
-        setPreferences(res.data.data);
-    });
-
-    useEffect(() => {
-        if (!preferences) return;
-        if (isInitialLoad.current) {
-            isInitialLoad.current = false
-            return
+    const load = useCallback(async () => {
+        try {
+            const response = await GEN3_COMMANDS.getPreferences(robot.serial)
+            if (response.data.result !== RobotApiResult.OK || !response.data.data) throw Error('Preferences unavailable')
+            if (active.current) {
+                latest.current = response.data.data
+                setPreferences(response.data.data)
+            }
+        } catch {
+            if (active.current) setLoadError(true)
         }
-        GEN3_COMMANDS.setPreferences(robot.serial, preferences);
-    }, [preferences])
+    }, [robot.serial])
 
-    const updateForm = <T,>(update: UseState<T>, patch: Partial<T>) => {
-        update(prev => ({
-            ...prev,
-            ...patch
-        }));
+    useEffect(() => {
+        active.current = true
+        void Promise.resolve().then(load)
+        return () => { active.current = false }
+    }, [load])
+
+    const save = async () => {
+        if (writing.current || !latest.current) return
+        writing.current = true
+        setSaving(true)
+        setSaveError(false)
+        try {
+            // A write always carries the complete preference object. Never overlap writes:
+            // an older request completing last could otherwise erase a rapid second edit.
+            while (active.current && latest.current) {
+                const submitted = latest.current
+                const result = await GEN3_COMMANDS.setPreferences(robot.serial, submitted)
+                if (result.data?.result !== RobotApiResult.OK) throw Error('Preferences rejected')
+                if (!active.current) break
+                const readback = await GEN3_COMMANDS.getPreferences(robot.serial)
+                if (readback.data.result !== RobotApiResult.OK || !readback.data.data || !matches(readback.data.data, submitted)) {
+                    throw Error('Preferences not confirmed')
+                }
+                if (matches(latest.current, submitted)) break
+            }
+        } catch {
+            if (active.current) setSaveError(true)
+        } finally {
+            writing.current = false
+            if (active.current) setSaving(false)
+        }
     }
 
-    if (!preferences) return // TODO: loading ui
+    const updateForm = (patch: Partial<Neato.Gen3.Preferences>) => {
+        if (!latest.current) return
+        const next = { ...latest.current, ...patch }
+        latest.current = next
+        setPreferences(next)
+        void save()
+    }
+
+    if (!preferences) return loadError
+        ? <div role="alert">{t('settings.preferencesLoadFailed')} <Button text={t('settings.retry')} style="secondary" onClick={() => { setLoadError(false); void load() }} /></div>
+        : null
 
     return (
         <>
+            {saving && <div role="status">{t('settings.preferencesSaving')}</div>}
+            {saveError && <div role="alert">{t('settings.preferencesSaveFailed')} <Button text={t('settings.retry')} style="secondary" onClick={() => { void save() }} /></div>}
             <div className={styles.item} style={{ background: 'var(--accent-soft)' }}>
                 <div className={styles.info}>
                     <span>{t('settings.robotSounds')}</span>
                 </div>
                 <Input type="switch" skipSection={true} value={preferences.robotSounds} onChange={(robotSounds) => {
-                    updateForm(setPreferences, { robotSounds })
+                    updateForm({ robotSounds })
                 }} />
             </div>
 
@@ -300,7 +344,7 @@ const Gen3RobotSettings = () => {
                 label={t('settings.binReminder')}
                 options={[30, 60, 90, 120, 150].map(i => ({ value: i, label: i.toString() }))} // 30-150 is ok
                 value={preferences.dirtbinAlertReminderInterval}
-                onChange={(dirtbinAlertReminderInterval) => updateForm(setPreferences, { dirtbinAlertReminderInterval })}
+                onChange={(dirtbinAlertReminderInterval) => updateForm({ dirtbinAlertReminderInterval })}
             />
 
             <Input
@@ -308,7 +352,7 @@ const Gen3RobotSettings = () => {
                 label={t('settings.filterReminder')}
                 options={[1, 1.5, 2, 2.5, 3].map(i => ({ value: (i * 30 * 24 * 60), label: i.toString() }))} // 43200-129600 is ok (1-3 month)
                 value={preferences.filterChangeReminderInterval}
-                onChange={(filterChangeReminderInterval) => updateForm(setPreferences, { filterChangeReminderInterval })}
+                onChange={(filterChangeReminderInterval) => updateForm({ filterChangeReminderInterval })}
             />
 
             <Input
@@ -316,7 +360,7 @@ const Gen3RobotSettings = () => {
                 label={t('settings.brushReminder')}
                 options={[4, 5, 6, 7, 8].map(i => ({ value: (i * 30 * 24 * 60), label: i.toString() }))} // 172800-345600 is ok (4-8 month)
                 value={preferences.brushChangeReminderInterval}
-                onChange={(brushChangeReminderInterval) => updateForm(setPreferences, { brushChangeReminderInterval })}
+                onChange={(brushChangeReminderInterval) => updateForm({ brushChangeReminderInterval })}
             />
         </>
     )

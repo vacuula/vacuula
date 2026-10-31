@@ -121,7 +121,7 @@ function getPreferences(serial: string) {
 }
 
 function setPreferences(serial: string, preferences: Preferences) {
-    return Http.sendCmd(serial, { cmd: "setPreferences", params: preferences})
+    return Http.sendCmd<RobotBaseResponse<object>>(serial, { cmd: "setPreferences", params: preferences})
 }
 
 
