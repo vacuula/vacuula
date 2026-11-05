@@ -164,8 +164,8 @@ export default () => {
                     {zoneOptions.length > 0 && (
                         <Input
                             type="select"
-                            label={t('schedule.selectZones')}
-                            extraInfo={t('schedule.selectZonesHelp')}
+                            label={t('schedule.selectSingleZone')}
+                            extraInfo={t('schedule.selectSingleZoneHelp')}
                             options={zoneOptions}
                             allowDeselect
                             value={scheduleForm.boundaryId}
