@@ -168,7 +168,7 @@ export default () => {
                         options={zoneOptions}
                         allowDeselect
                         value={scheduleForm.boundaryId}
-                        onChange={(boundaryId) => boundaryId && updateForm(SetScheduleForm, { boundaryId })}
+                        onChange={(boundaryId) => updateForm(SetScheduleForm, { boundaryId })}
                     />
 
                     <Button text={t('common.save')} style='success' onClick={() => {
