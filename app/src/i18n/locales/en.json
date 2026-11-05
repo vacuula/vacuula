@@ -133,7 +133,11 @@
         "usePromoted": "Use floorplan",
         "useNogoLayer": "Avoid nogo lines & zones",
         "selectZones": "Clean zones",
-        "selectZonesHelp": "Optional, select one or more zones to clean, if none selected, it will clean entire map."
+        "selectZonesHelp": "Optional, select one or more zones to clean, if none selected, it will clean entire map.",
+        "operationLoadError": "Could not load the schedule. Please try again.",
+        "operationRejected": "The robot rejected the change. Your schedule and form have been kept. Please try again.",
+        "operationUnconfirmed": "The updated schedule could not be confirmed. Changes are blocked to avoid overwriting the robot's schedule. Retry checking, or reload this page to review its current schedule before trying again.",
+        "retrySchedule": "Retry checking schedule"
     },
     "map": {
         "maps": "Maps",
