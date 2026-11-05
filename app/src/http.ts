@@ -118,6 +118,10 @@ export class Http {
   }
 
   static demoteFloorplan(serial: string, mapId: string) {
+    return instance.post(`/robot/${serial}/maps/${mapId}/demote`)
+  }
+
+  static deleteMap(serial: string, mapId: string) {
     return instance.delete(`/robot/${serial}/maps/${mapId}`)
   }
 

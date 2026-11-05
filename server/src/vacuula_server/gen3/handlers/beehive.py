@@ -72,6 +72,7 @@ def persistent_maps(req: RouterHandler) -> None:
             select(PersistentMap.id, PersistentMap.robot)
             .where(PersistentMap.enabled == True)
             .where(PersistentMap.in_maps_list == True)
+            .where(PersistentMap.deleted == False)
             .where(PersistentMap.robot == serial)
         ).all()
 
@@ -184,7 +185,7 @@ def upload_finish(req: RouterHandler, upload_type:Literal["maps", "logs"], job_i
             logger.debug("Persistent map %s exists, updating", run_id)
             pmap.base = base
             # an upload during the run is not yet valid; promote once a later upload is
-            if valid and not pmap.in_maps_list:
+            if valid and not pmap.in_maps_list and not pmap.deleted:
                 pmap.in_maps_list = True
                 pmap.enabled = True
 

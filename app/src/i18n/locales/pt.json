@@ -131,6 +131,10 @@
     },
     "map": {
         "maps": "Mapas",
+        "deleteMap": "Eliminar mapa",
+        "deleteMapNamed": "Eliminar mapa {{name}}",
+        "confirmDelete": "Eliminar o mapa \"{{name}}\"? Deixará de estar disponível para limpeza. O histórico de limpezas será mantido.",
+        "deleteFailed": "Não foi possível eliminar o mapa. Se estiver em utilização, verifique se o robô está ligado e tente novamente.",
         "mapTitle": "Mapa: {{name}}",
         "dragUpToFinish": "Arraste para cima para terminar",
         "editBoundary": "Editar limite",

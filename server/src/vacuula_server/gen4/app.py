@@ -409,8 +409,11 @@ def _mark_targets_inside_zones(real_blob, cleaning_zones, floorplan):
 
 
 def demote_floorplan(serial: str, map_id: str) -> tuple[bool, str]:
-    """Returns (ok, message); (False, ...) when the robot is not connected so
-    callers can answer 400 instead of raising."""
+    """Demote only after the robot acknowledges the request."""
+    with get_session() as session:
+        floorplan = session.scalar(select(FloorPlan).where(FloorPlan.id == map_id, FloorPlan.robot == serial))
+        if floorplan is None:
+            return False, "Map not found"
     conn = robot_connections.get(serial)
     if conn is None:
         return False, "Robot not connected"
@@ -420,7 +423,17 @@ def demote_floorplan(serial: str, map_id: str) -> tuple[bool, str]:
         "rank_uuid":     map_id,
     }
 
-    robot_send_request(conn, payload)
+    slot = PendingRequest()
+    request_id, error = robot_send_request(conn, payload, slot)
+    if error:
+        return False, "Failed to send demote command to robot"
+    try:
+        if not slot.event.wait(30):
+            return False, "Robot did not acknowledge demote in time"
+        if slot.status != 200:
+            return False, "Robot rejected demote"
+    finally:
+        pending_requests.pop(str(request_id), None)
 
     with get_session() as session:
         session.execute(
@@ -435,8 +448,8 @@ def demote_floorplan(serial: str, map_id: str) -> tuple[bool, str]:
         session.commit()
     return True, ""
 
-def delete_demote_floorplan(req: RouterHandler, serial: str, map_id: str) -> None:
-    """DELETE /robot/<serial>/maps/<map_id> - demote floorplan"""
+def post_demote_floorplan(req: RouterHandler, serial: str, map_id: str) -> None:
+    """POST /robot/<serial>/maps/<map_id>/demote - demote floorplan."""
 
     ok, msg = demote_floorplan(serial, map_id)
     if not ok:

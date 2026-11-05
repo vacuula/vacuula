@@ -15,6 +15,7 @@ class PersistentMap(Base):
     robot: Mapped[str] = mapped_column(String, ForeignKey("robot.serial", ondelete='CASCADE'), nullable=False)
     name: Mapped[str] = mapped_column(String, nullable=False)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
     in_maps_list: Mapped[bool] = mapped_column(Boolean, nullable=False) # if valid in case of gen3
     base: Mapped[Point] = mapped_column(JSON, nullable=False) # x, y
 

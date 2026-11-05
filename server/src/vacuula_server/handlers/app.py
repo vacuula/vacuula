@@ -115,7 +115,7 @@ def post_map(req: RouterHandler, serial: str, map_id: str) -> None:
     with get_session() as session:
         session.execute(
             update(PersistentMap)
-            .where(PersistentMap.id == map_id, PersistentMap.robot == serial)
+            .where(PersistentMap.id == map_id, PersistentMap.robot == serial, PersistentMap.deleted == False)
             .values(name=name, enabled=enabled)
         )
 
@@ -127,6 +127,41 @@ def post_map(req: RouterHandler, serial: str, map_id: str) -> None:
         session.commit()
     
     req.send_ok()
+
+def delete_map(req: RouterHandler, serial: str, map_id: str) -> None:
+    """Remove a saved map, retaining its files and linked cleaning history."""
+    robot = get_robot_by_serial(serial)
+    if robot is None:
+        req.send_not_found("Robot not found")
+        return
+    if robot.type not in ("neato.gen3", "neato.gen4"):
+        req.send_bad_request("Unsupported robot generation")
+        return
+
+    table = PersistentMap if robot.type == "neato.gen3" else FloorPlan
+    with get_session() as session:
+        saved_map = session.scalar(select(table).where(table.id == map_id, table.robot == serial))
+        if saved_map is None:
+            req.send_not_found("Map not found")
+            return
+
+        if isinstance(saved_map, FloorPlan) and saved_map.promoted:
+            from vacuula_server.gen4.app import demote_floorplan
+
+            ok, message = demote_floorplan(serial, map_id)
+            if not ok:
+                req.send_bad_request(message)
+                return
+            saved_map.promoted = False
+
+        saved_map.in_maps_list = False
+        if isinstance(saved_map, PersistentMap):
+            saved_map.enabled = False
+            saved_map.deleted = True
+        session.commit()
+
+    req.send_ok()
+
 
 def post_robot(req: RouterHandler, serial: str) -> None:
     """POST /robot/<serial> - update robot"""
@@ -277,5 +312,3 @@ def post_robot_command(req: RouterHandler, serial: str) -> None:
         _send_quietly(lambda: req.send_response_data(slot.content, True, slot.status))
     else:
         _send_quietly(lambda: req.send_error_response(504, "Robot did not answer in time"))
-    
-    

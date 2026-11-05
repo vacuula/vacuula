@@ -4,6 +4,7 @@ import Drawer from '../../components/drawer/drawer'
 
 import Input from '../../components/input/input'
 import Button from '../../components/button/button'
+import { FaTrash } from 'react-icons/fa'
 import { GEN3_COMMANDS } from '../../http/gen3'
 import { Http } from '../../http'
 import { Neato, RobotType, type Robot } from '../../types'
@@ -11,7 +12,7 @@ import { Neato, RobotType, type Robot } from '../../types'
 import MapCanvas, { type MapMode } from './MapCanvas'
 import { GEN4_COMMANDS } from '../../http/gen4'
 import { useRobot } from '../../context/useRobot'
-import { usePersistentMaps } from '../../loaders/resources'
+import { persistentMapsLoader, usePersistentMaps } from '../../loaders/resources'
 import type { Floorplan } from '../../types/neato/gen4'
 import { v4 as uuidv4 } from 'uuid';
 import { useTranslation } from 'react-i18next'
@@ -46,6 +47,8 @@ export default () => {
     const [currentLinePoints, setCurrentLinePoints] = useState<Point[]>([])
     const [closedAsPolygon, setClosedAsPolygon] = useState(false)
     const [persistentMap, setPersistentMap] = useState<string>()
+    const [deletingMap, setDeletingMap] = useState(false)
+    const [deleteError, setDeleteError] = useState(false)
 
     const [mode, setMode] = useState<MapMode>('maps')
     const [returnFromEditMode, SetReturnFromEditMode] = useState<'boundaries' | 'boundary-info'>('boundaries')
@@ -116,6 +119,30 @@ export default () => {
         })
     }
 
+    const deleteMap = async (mapId: string) => {
+        if (deletingMap) return
+        const map = persistentMaps?.find(p => p.id === mapId)
+        if (!window.confirm(t('map.confirmDelete', { name: map?.name ?? '' }))) return
+        setDeletingMap(true)
+        setDeleteError(false)
+        try {
+            await Http.deleteMap(robot.serial, mapId)
+            persistentMapsLoader.setData(maps => (
+                (maps ?? []).filter(p => p.id !== mapId) as Neato.Gen3.PersistentMap[] | Floorplan[]
+            ), robot.serial)
+            if (persistentMap === mapId) {
+                setPersistentMap(undefined)
+                setActiveBoundaryId(undefined)
+                setBoundaries([])
+                setMode('maps')
+            }
+        } catch {
+            setDeleteError(true)
+        } finally {
+            setDeletingMap(false)
+        }
+    }
+
     const getMapBoundaries = () => {
         if (!persistentMap) return
         skipNextPostRef.current = true
@@ -162,6 +189,7 @@ export default () => {
     useEffect(() => {
         if (mode === 'boundaries') setActiveBoundaryId(undefined)
         if (mode === 'map-edit') {
+            setDeleteError(false)
             const pmap = persistentMaps?.find(p => p.id === persistentMap)
             if (!pmap) return;
             setMapEditForm({
@@ -298,19 +326,37 @@ export default () => {
             >
                 {mode === 'maps' && (
                     <div className={styles.featureList}>
-                        {persistentMaps?.map((item, i) => (
-                            <div key={i} className={styles.item} onClick={() => setPersistentMap(item.id)}>
+                        {deleteError && <span role="alert">{t('map.deleteFailed')}</span>}
+                        {persistentMaps?.map(item => (
+                            <div key={item.id} className={styles.item} onClick={() => {
+                                if (!deletingMap) setPersistentMap(item.id)
+                            }}>
                                 <div className={styles.info}>
                                     <span>{item.name}</span>
                                     <span className={styles.type}>{new Date('created_at' in item ? item.created_at : item.id).toLocaleString()}</span>
                                 </div>
-                                {'enabled' in item ? (
-                                    <Input type="switch" skipSection={true} value={item.enabled} onChange={() => {
-                                        updatePersistentMap({ name: item.name, enabled: !item.enabled }, item.id);
-                                    }} />
-                                ) : (
-                                    <PromoteDemoteBtn robot={robot} map={item} onSuccess={updatePersistentMaps} />
-                                )}
+                                <div className={styles.mapActions}>
+                                    {'enabled' in item ? (
+                                        <Input type="switch" skipSection={true} value={item.enabled} onChange={() => {
+                                            updatePersistentMap({ name: item.name, enabled: !item.enabled }, item.id);
+                                        }} />
+                                    ) : (
+                                        <PromoteDemoteBtn robot={robot} map={item} onSuccess={updatePersistentMaps} />
+                                    )}
+                                    <button
+                                        type="button"
+                                        className={styles.deleteMapButton}
+                                        aria-label={t('map.deleteMapNamed', { name: item.name })}
+                                        title={t('map.deleteMap')}
+                                        disabled={deletingMap}
+                                        onClick={event => {
+                                            event.stopPropagation()
+                                            deleteMap(item.id)
+                                        }}
+                                    >
+                                        <FaTrash aria-hidden="true" />
+                                    </button>
+                                </div>
                             </div>
                         ))}
                         {persistentMaps?.length === 0 && (
@@ -346,17 +392,8 @@ export default () => {
                         <Button text={t('common.save')} style='success' onClick={() => {
                             updatePersistentMap(mapEditform);
                         }} />
-                        {robot.type === RobotType.NeatoGen4 &&
-                            (persistentMaps?.find(p => p.id === persistentMap) as Floorplan)?.in_maps_list &&
-                            !(persistentMaps?.find(p => p.id === persistentMap) as Floorplan)?.promoted && (
-                                <div style={{ padding: '1rem 0' }}>
-                                    <Button text={t('map.stopUsingAsFloormap')} style='fail' onClick={() =>
-                                        Http.postUnuseMapAsFloorPlan(robot.serial, persistentMap).then(() => {
-                                            setMode('maps')
-                                            updatePersistentMaps()
-                                        })} />
-                                </div>
-                            )}
+                        <Button text={t('map.deleteMap')} style='fail' disabled={deletingMap} onClick={() => deleteMap(persistentMap)} />
+                        {deleteError && <span role="alert">{t('map.deleteFailed')}</span>}
                     </div>
                 )}
 
