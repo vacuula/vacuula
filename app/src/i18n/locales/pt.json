@@ -124,6 +124,7 @@
         "weekdays": "Nos dias úteis",
         "navigation": "Navegação",
         "boundaryId": "ID do limite",
+        "gen3TimezoneHint": "As horas usam a diferença atual do servidor em relação a UTC. Reveja os horários após mudanças da hora de verão.",
         "usePromoted": "Usar mapa",
         "useNogoLayer": "Evitar linhas e zonas No-Go",
         "selectZones": "Zonas de limpeza",

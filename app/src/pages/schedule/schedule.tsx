@@ -17,6 +17,7 @@ import { dayKey } from '../../i18n/days'
 import { usePersistentMaps } from '../../loaders/resources'
 import type { UseState } from '../../components/map/types'
 import { fetchAllGen3Boundaries, getCachedZones } from '../../loaders/gen3Boundaries'
+import { formatUtcOffset, localSlotToUtc, parseHHMM, utcSlotToLocal, type Weekday } from '../../utils/clockTime'
 
 export default () => {
     const { t } = useTranslation()
@@ -82,7 +83,7 @@ export default () => {
                     <div className={styles.info}>
                         <span>{t('schedule.schedule')}</span>
                         {serverInfo && (
-                            <span className={styles.type}>{serverInfo.timezone}</span>
+                            <span className={styles.type}>{serverInfo.timezone} ({formatUtcOffset(offset)})</span>
                         )}
                     </div>
                     <Input type="switch" skipSection={true} value={schedule.enabled} onChange={() => {
@@ -102,12 +103,13 @@ export default () => {
                 </div>
 
                 {schedule.events?.map((item, i) => {
+                    const local = utcSlotToLocal({ time: item.startTime, day: item.day as Weekday }, offset)
                     return (
                         <div key={i} className={styles.item}>
                             <div className={styles.info}>
-                                <span>{item.startTime}</span>
+                                <span>{local.time}</span>
                                 <span className={styles.type}>
-                                    {t('schedule.gen3Summary', { day: t(`days.${dayKey(item.day)}`), mode: CleaningMode[item.mode] })}
+                                    {t('schedule.gen3Summary', { day: t(`days.${dayKey(local.day)}`), mode: CleaningMode[item.mode] })}
                                     {item.boundary && ` | ${t('schedule.gen3SummaryZone', { zone: item.boundary.name })}`}
                                 </span>
                             </div>
@@ -158,6 +160,7 @@ export default () => {
                     <Input
                         type="time"
                         label={`${t('common.time')} (${serverInfo?.timezone ?? 'UTC'})`}
+                        extraInfo={t('schedule.gen3TimezoneHint')}
                         value={scheduleForm.startTime}
                         onChange={(startTime) => updateForm(SetScheduleForm, { startTime })} />
 
@@ -172,8 +175,11 @@ export default () => {
                     />
 
                     <Button text={t('common.save')} style='success' onClick={() => {
+                        if (scheduleForm.day < 0 || scheduleForm.day > 6 || parseHHMM(scheduleForm.startTime) === null) return
+                        const utc = localSlotToUtc({ time: scheduleForm.startTime, day: scheduleForm.day as Weekday }, offset)
+                        const event = { ...scheduleForm, startTime: utc.time, day: utc.day as RobotDay }
                         setDrawerOpen(false)
-                        GEN3_COMMANDS.setSchedule(robot.serial, [scheduleForm, ...schedule.events]).finally(() => getSchedule())
+                        GEN3_COMMANDS.setSchedule(robot.serial, [event, ...schedule.events]).finally(() => getSchedule())
                     }} />
                 </div>
 

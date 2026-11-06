@@ -130,6 +130,7 @@
         "weekdays": "on weekdays",
         "navigation": "Navigation",
         "boundaryId": "Boundary ID",
+        "gen3TimezoneHint": "Times use the current server UTC offset. Review schedules after daylight saving changes.",
         "usePromoted": "Use floorplan",
         "useNogoLayer": "Avoid nogo lines & zones",
         "selectZones": "Clean zones",
