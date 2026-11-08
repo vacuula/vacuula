@@ -116,6 +116,8 @@
         "addOneMore": "Ajouter une ou plusieurs planifications",
         "noSchedules": "Il n'y a aucune planification pour l'instant, pourquoi ne pas en ajouter une ?",
         "addEvent": "Ajouter un évènement",
+        "selectSingleZone": "Zone de nettoyage",
+        "selectSingleZoneHelp": "Facultatif : sélectionnez une zone à nettoyer. Si aucune zone n'est sélectionnée, toute la carte sera nettoyée.",
         "gen3Summary": "Exécuté le : {{day}} | Mode : {{mode}}",
         "gen3SummaryZone": "Zone : {{zone}}",
         "gen4Summary": "Exécuté {{when}} | {{mode}} mode | {{navigation}} navigation",
