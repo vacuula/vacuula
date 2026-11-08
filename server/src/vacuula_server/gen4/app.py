@@ -435,14 +435,5 @@ def demote_floorplan(serial: str, map_id: str) -> tuple[bool, str]:
         session.commit()
     return True, ""
 
-def delete_demote_floorplan(req: RouterHandler, serial: str, map_id: str) -> None:
-    """DELETE /robot/<serial>/maps/<map_id> - demote floorplan"""
-
-    ok, msg = demote_floorplan(serial, map_id)
-    if not ok:
-        req.send_bad_request(msg)
-        return
-
-    req.send_ok()
 
 

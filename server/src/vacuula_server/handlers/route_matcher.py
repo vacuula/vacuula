@@ -6,7 +6,7 @@ import re
 from typing import Callable, Optional, Tuple, List
 
 # general
-from .app import get_robots, get_maps, get_map, get_run, post_map, post_robot, get_runs, connect_robot, post_robot_command, get_server_info
+from .app import get_robots, get_maps, get_map, get_run, post_map, post_robot, get_runs, connect_robot, post_robot_command, get_server_info, delete_floorplan, restore_floorplan
 from .events import get_events
 from vacuula_server.handlers.setup import get_cert, get_log, get_log_full
 
@@ -56,7 +56,8 @@ APP_ROUTES: List[Tuple[str, str, Handler]] = [
     ("POST", r"/api/robot/(.+)/maps/(.+)", post_map),
     ("POST", r"/api/robot/(.+)/command", post_robot_command),
     ("POST", r"/api/robot/(.+)", post_robot),
-    ("DELETE", r"/api/robot/(.+)/maps/(.+)", gen4.delete_demote_floorplan),
+    ("DELETE", r"/api/robot/(.+)/maps/(.+)", delete_floorplan),
+    ("PUT", r"/api/robot/(.+)/maps/(.+)", restore_floorplan),
 ]
 
 S3_ROUTES: List[Tuple[str, str, Handler]] = [
