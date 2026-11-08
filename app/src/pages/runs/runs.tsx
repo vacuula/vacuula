@@ -17,7 +17,7 @@ import { IoMdTime, IoMdCheckmarkCircle, IoMdCloseCircleOutline } from "react-ico
 import { SlEnergy } from "react-icons/sl";
 import Map from '../../components/map/map'
 import { useRobot } from '../../context/useRobot'
-import { usePersistentMap } from '../../loaders/resources'
+import { usePersistentMaps } from '../../loaders/resources'
 import { useTranslation } from 'react-i18next'
 import i18n from '../../i18n'
 import { useUnits } from '../../units'
@@ -113,6 +113,9 @@ export default () => {
 
                     {/* TODO: Explain the differnet colors meaning */}
 
+                    {selectedCleaning && 'run' in selectedCleaning && selectedCleaning.run.valid_as_persistent_map &&
+                        <Gen3RestoreMapBtn runId={selectedCleaning.id} />}
+
                     <hr style={{ width: '100%' }} />
 
 
@@ -139,7 +142,7 @@ export default () => {
                             <div className={styles.run}>
                                 <div className={styles.info}>
                                     <span>{selectedCleaning.run.status} | {formatDuration(selectedCleaning.run.start_at, selectedCleaning.run.end_at)}</span>
-                                    { selectedCleaning.run.error && <span className={styles.type} style={{ color: 'var(--error)' }}>{selectedCleaning.run.error}</span> }
+                                    {selectedCleaning.run.error && <span className={styles.type} style={{ color: 'var(--error)' }}>{selectedCleaning.run.error}</span>}
                                     <span className={styles.type}>
                                         {formatArea(selectedCleaning.run.cleaned_area)} &nbsp; |
                                         &nbsp; {Neato.Gen3.CleaningMode[selectedCleaning.run.mode]} {Neato.Gen3.CleaningNavigationMode[selectedCleaning.run.navigation_mode]} |
@@ -162,6 +165,30 @@ export default () => {
     )
 }
 
+function Gen3RestoreMapBtn({ runId }: { runId: string }) {
+    const { robot } = useRobot()
+    const { t } = useTranslation()
+    const valid = useRef<boolean | undefined>(undefined);
+    const { data: persistentMaps, refresh: updatePersistentMaps } = usePersistentMaps()
+
+    useEffect(() => {
+        GEN3_COMMANDS.getMapBoundaries(robot.serial, runId).then(() => valid.current = true).catch(() => valid.current = false)
+    }, [])
+
+    if (valid.current === undefined || persistentMaps?.find(map => map.id === runId)) return null;
+    if (valid.current === false) return (
+        <div style={{ padding: '1.5rem' }}>
+            <span>{t('runs.cannotRestoreMap')}</span>
+        </div>
+    )
+
+    return (
+        <div style={{ padding: '1.5rem' }}>
+            <Button text={t('runs.restoreMap')} style='success' onClick={() => Http.restoreFloorplan(robot.serial, runId).then(updatePersistentMaps)} />
+        </div>
+
+    )
+}
 
 function formatDuration(startDate: string, endDate: string) {
     const start = new Date(startDate).getTime();
