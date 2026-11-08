@@ -4,6 +4,7 @@ from vacuula_server.conn import Gen2Gen3Conn
 from vacuula_server.gen3.commands import send_chunk, build_command
 from vacuula_server.env import GEN3_PORT, GEN4_PORT, HA_INGRESS
 from vacuula_server.constants import APP_VERSION, MAPS_DIR, MINIMUM_INSTALLER_VERSION
+from vacuula_server.gen4.app import demote_floorplan
 from vacuula_server.state import robot_connections, client_connections, pending_requests, PendingRequest
 from vacuula_server.handlers.events import robots_snapshot, notify_robots_changed, CLIENT_QUEUE_MAX
 from vacuula_server.db import get_session
@@ -187,9 +188,51 @@ def get_run(req: RouterHandler, serial: str, run_id: str) -> None:
     req.send_ok(data)
 
 
+def delete_floorplan(req: RouterHandler, serial: str, map_id: str) -> None:
+    """DELETE /robot/<serial>/maps/<map_id> - delete floorplan"""
+    # gen3 remove from list, gen4 demote it and remove from list
+    gen3Robot = True if '-' in serial else False
 
+    if gen3Robot:
+        with get_session() as session:
+            session.execute(
+                update(PersistentMap)
+                .where(
+                    PersistentMap.robot == serial,
+                    PersistentMap.id == map_id,
+                )
+                .values(in_maps_list=False, enabled=False)
+            )
 
+            session.commit()
+    else:
+        ok, msg = demote_floorplan(serial, map_id)
+        if not ok:
+            req.send_bad_request(msg)
+            return
 
+    req.send_ok()
+
+def restore_floorplan(req: RouterHandler, serial: str, map_id: str) -> None:
+    """PUT /robot/<serial>/maps/<map_id> - restore floorplan"""
+    # if floormap is still on robot, we can restore it back to the maps list!
+    if '-' not in serial:
+        req.send_bad_request()
+        return
+
+    with get_session() as session:
+        session.execute(
+            update(PersistentMap)
+            .where(
+                PersistentMap.robot == serial,
+                PersistentMap.id == map_id,
+            )
+            .values(in_maps_list=True)
+        )
+
+        session.commit()
+
+    req.send_ok()
 
 def connect_robot(req: RouterHandler, serial: str) -> None:
     """GET /robots/{serial}/connect - SSE stream for client"""

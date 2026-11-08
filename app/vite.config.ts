@@ -8,7 +8,7 @@ export default defineConfig({
     server: {
         proxy: {
             '/api': {
-                target: process.env.VACUULA_API ?? 'http://192.168.1.161:8050',
+                target: process.env.VACUULA_API ?? 'http://localhost:8050',
                 changeOrigin: true,
             },
         },

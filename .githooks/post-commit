@@ -5,9 +5,9 @@ msg="$(git log -1 --pretty=%B)"
 version=""
 
 # Same tags as the GitHub workflow
-if [[ "$msg" =~ release:([0-9A-Za-z._-]+) ]]; then
+if [[ "$msg" =~ release:([0-9A-Za-z._+-]+) ]]; then
     version="${BASH_REMATCH[1]}"
-elif [[ "$msg" =~ dbuild:([0-9A-Za-z._-]+) ]]; then
+elif [[ "$msg" =~ dbuild:([0-9A-Za-z._+-]+) ]]; then
     version="${BASH_REMATCH[1]}"
 fi
 version="${version%%[._-]}"

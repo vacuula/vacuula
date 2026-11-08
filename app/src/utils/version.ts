@@ -1,8 +1,5 @@
-// TODO: right now we support only X.X.X[-bX], in the future we might want to support more complex
-// idea: for anything else versions have to match exactly? but whatever we do, update both version
-// parsing in both FE, BE and build script!
-
-const VERSION_RE = /^(\d+)\.(\d+)\.(\d+)(?:-b(\d+))?$/;
+// Version format: X.X.X[-bX][+build info]
+const VERSION_RE = /^(\d+)\.(\d+)\.(\d+)(?:-b(\d+))?(?:\+([0-9A-Za-z.-]+))?$/;
 
 type ParsedVersion = [number, number, number, number];
 

@@ -18,6 +18,7 @@ import { VscFeedback } from 'react-icons/vsc'
 import { FaFileLines } from 'react-icons/fa6'
 import type { UseState } from '../../components/map/types'
 import { loadSelectedMapShape, saveSelectedMapShape, MAPSHAPES } from './mapshapes'
+import { BASE_PATH } from '../../http'
 
 export default () => {
     const { t, i18n } = useTranslation()
@@ -140,10 +141,10 @@ export default () => {
                         <Button icon={<SiKofi size={20} />} text='Ko-fi' style='secondary' onClick={() => window.open('https://ko-fi.com/V7V61PBIY6')} />
                         <Button icon={<SiBuymeacoffee size={20} />} text='Buy Me a Coffee' style='secondary' onClick={() => window.open('https://www.buymeacoffee.com/philip2809')} />
 
-                        <Button icon={<GrCertificate size={20} />} text={t('settings.downloadCert')} style='secondary' onClick={() => window.open("/api/cert")} />
+                        <Button icon={<GrCertificate size={20} />} text={t('settings.downloadCert')} style='secondary' onClick={() => window.open(BASE_PATH + "/api/cert")} />
                         <Button icon={<VscFeedback size={20} />} text={t('settings.giveFeedback')} style='secondary' onClick={() => window.open("https://feedback.vacuula.phma.dev/")} />
 
-                        <Button icon={<FaFileLines size={20} />} text={t('settings.downloadLogs')} style='secondary' onClick={() => window.open("/api/log/full?download=true")} />
+                        <Button icon={<FaFileLines size={20} />} text={t('settings.downloadLogs')} style='secondary' onClick={() => window.open(BASE_PATH + "/api/log/full?download=true")} />
                     </div>
                 </Input>
 
