@@ -22,10 +22,7 @@ https://www.digitalocean.com/community/tutorials/how-to-install-and-use-docker-o
 Currently all robots require internet to reach `pool.ntp.org` to set the time correctly. With the next update we plan to include an small ntp compatible time-endpoint so that a connection to `pool.ntp.org` is not needed. 
 
 - Gen4 (D800-D10) only have the `pool.ntp.org` dependency, we plan on fixing with next update.
-- Gen3 (D3-D7) robots also need internet for the ip lookup and an firmware made internet check. To understand how these work, please read below.
-
-> [!NOTE]
-> Gen3 robots fetch the ip of your server correctly via [nip.io](nip.io). Because of the way the robot works, if you enter an private ip it behaves as if it were in development, because of this nip.io is used to make an hostname into an ip (`vacuula-local-192-168-1-123` --> `192.168.1.123`). This requirement can be eliminated by hosting your own nip.io instance, and we plan on including this with a future release of Vacuula, however that also requires us to figure out the DNS. nip.io is open source and the only data sent to their servers is the DNS request, all other data from the robot goes directly to your server.
+- Gen3 (D3-D7) robots also need internet for an firmware made internet check. To understand how these work, please read below.
 
 > [!NOTE]
 > Gen3 robots have an firmware bound internet check to `8.8.8.8` (Google DNS). Sadly, this is not easy to disable in the firmware (we are looking into what we can do that way), however you can bypass it by rewriting 8.8.8.8 requests to your own DNS for the ip of the robot (advanced users)
