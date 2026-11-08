@@ -6,6 +6,7 @@ from pathlib import Path
 # Application metadata
 # --------------------------------------------------------------------------
 from vacuula_server._build_version import APP_VERSION
+MINIMUM_INSTALLER_VERSION = "1.1.0-b3"
 
 # --------------------------------------------------------------------------
 # Application data directories
@@ -28,6 +29,7 @@ KEY = SSL_DIR / "privkey.pem"
 CERT_CONFIG = BASE_DIR / "ssl" / "vacuula.cnf"
 
 DB_PATH = DATA_DIR / "vacuula.db"
+ALEMBIC_INI = BASE_DIR / "alembic.ini"
 
 
 

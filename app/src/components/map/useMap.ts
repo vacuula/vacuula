@@ -3,11 +3,11 @@ import { DRAWING } from './constants'
 import { useCanvasViewport } from './useCanvasViewport'
 import { decodeRLE, calcFitZoomAndOffset } from './utils'
 import { drawMap, computeIgnoredRunValues, colorForPathValue, type CellShape } from './drawingFunctions'
-import { Http } from '../../http'
 import type { Offset } from './types'
 import { useCleaning, usePersistentMap } from '../../loaders/resources'
 import { useRobot } from '../../context/useRobot'
 import { RobotType } from '../../types'
+import { loadSelectedMapShape } from '../../pages/settings/mapshapes'
 
 export interface MapSize { width: number; height: number }
 
@@ -35,7 +35,7 @@ interface UseMapOptions {
 export function useMap({
     mapId,
     runId,
-    shape = 'circle',
+    shape = loadSelectedMapShape(),
     fitOnLoad = true,
     extraDraw,
     redrawKey,

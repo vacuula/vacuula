@@ -1,10 +1,28 @@
-import { biEnum } from "../../.helpers";
-import type { ApiResult, RobotModel, ServiceLevel } from "./robot";
+import type { RobotApiResult } from "./api";
+import type { RobotModel, ServiceLevel } from "./robot";
+
+export interface GetGeneralInfo {
+    productNumber: string;
+    serial:        string;
+    model:         RobotModel;
+    firmware:      string;
+    battery:       BatteryInfo;
+}
+
+export interface BatteryInfo {
+    level:               number;
+    timeToEmpty:         number;
+    timeToFullCharge:    number;
+    totalCharges:        number;
+    manufacturingDate:   Date;
+    authorizationStatus: number;
+    vendor:              string;
+}
 
 export interface GetRobotStateResponse {
     version:           number;
     reqId:             string;
-    result:            ApiResult;
+    result:            RobotApiResult;
     data:              {}; // not sure
     state:             RobotState;
     action:            RobotAction;

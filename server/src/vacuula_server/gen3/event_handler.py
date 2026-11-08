@@ -26,7 +26,7 @@ def robot_data(serial: str, data: bytes):
     data = data[:-2]
 
     if (chr(data[0]) != '{' and msg_size == 1):
-        logger.info("heartbeat from robot %s", serial)
+        logger.debug("heartbeat from robot %s", serial)
         return
 
 

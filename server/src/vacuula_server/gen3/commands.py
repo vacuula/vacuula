@@ -69,8 +69,8 @@ def build_command(robot_serial: str, cmd: dict):
     payload = json.dumps({
         "reqId": str(req_id),
         **cmd
-    }).encode()
+    }, ensure_ascii=False)
 
     req_id += 1
 
-    return [(req_id - 1), sign_cmd(robot_serial, payload.decode()).encode()]
+    return [(req_id - 1), sign_cmd(robot_serial, payload).encode()]

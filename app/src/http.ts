@@ -9,19 +9,22 @@ declare module 'axios' {
   }
 }
 
+const ha_ingress = window.location.pathname.match(/^\/api\/hassio_ingress\/[^/]+/)
+export const BASE_PATH = ha_ingress ? ha_ingress[0] : ""
+
 /** GET /api/server */
 export interface ServerInfo {
+  version: string
+  min_installer_version: string
+  gen3_port: number
+  gen4_port: number
+
   timezone: string
   utc_offset_minutes: number
-  version: string
-  gen4_port: number
 }
 
-// Store for loading state callback - will be set by AppContext
-// let loadingStateCallback: ((state: { isLoading: boolean; message?: string }) => void) | null = null;
-
 const instance = axios.create({
-  baseURL: `${location.origin}/api`, 
+  baseURL: `${BASE_PATH}/api`, 
 });
 
 export type LoadingState = { isLoading: boolean; message?: string };
@@ -114,8 +117,13 @@ export class Http {
     return instance.get(`/robot/${serial}/run/${runId}`)
   }
 
-  static demoteFloorplan(serial: string, mapId: string) {
+  static deleteFloorplan(serial: string, mapId: string) {
     return instance.delete(`/robot/${serial}/maps/${mapId}`)
+  }
+
+  // TODO: look over if i want this as a put or not
+  static restoreFloorplan(serial: string, mapId: string) {
+    return instance.put(`/robot/${serial}/maps/${mapId}`)
   }
 
   static getRobots() {

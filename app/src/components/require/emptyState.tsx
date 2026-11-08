@@ -2,6 +2,9 @@ import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMascot } from '../../mascot'
 import styles from './emptyState.module.scss'
+import type { QuickRobotInfo } from '../../types'
+import { isRobotOutdated } from '../../utils/version'
+import type { ServerInfo } from '../../http'
 
 interface EmptyStateProps {
     title: string
@@ -50,5 +53,26 @@ export function ServerUnreachable({ onRetry }: ServerUnreachableProps) {
                 {t('serverUnreachable.retry')}
             </button>
         </div>
+    )
+}
+
+export function ServerHasOutdatedRobot({ robots, serverInfo }: { robots: QuickRobotInfo, serverInfo: ServerInfo }) {
+    const { t } = useTranslation()
+    const bad_robots = Object.values(robots).filter(
+        r => r.installed_with && isRobotOutdated(r.installed_with, serverInfo.min_installer_version)
+    )
+    return (
+        <EmptyState title={t('hasOutdatedRobot.title')} subtitle={t('hasOutdatedRobot.subtitle', { 
+            serverVersion: serverInfo.version, minInstallerVersion: serverInfo.min_installer_version 
+        })}>
+            <ul className={styles.robots}>
+                {bad_robots.map((info, i) => (
+                    <li key={i} className={styles.robot}>
+                        <span className={styles.offlineDot} />
+                        {info.name} - {info.installed_with}
+                    </li>
+                ))}
+            </ul>
+        </EmptyState>
     )
 }

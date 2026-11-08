@@ -10,6 +10,8 @@ body, html {
 
 html {
     font-size: 62.5%;
+    /* The app frame is 100vh when installed, taller than the layout viewport; the page itself must never scroll */
+    overflow: hidden;
 }
 
 body {

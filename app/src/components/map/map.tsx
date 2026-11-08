@@ -27,7 +27,7 @@ function basePoseFromMapData(data: VacuulaMapData) {
     return {
         pose: {
             x: ((base[0] - md.origin_x) / resolution) / img[0],
-            y: ((base[1] - md.origin_y) / resolution) / img[1],
+            y: 1 - ((base[1] - md.origin_y) / resolution) / img[1],
             dir: base[2] ?? 0,
         },
         resolution,

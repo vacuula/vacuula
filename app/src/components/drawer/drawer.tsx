@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import styles from './drawer.module.scss'
 import { FaArrowLeft } from "react-icons/fa";
 import { useTranslation } from "react-i18next";
@@ -23,34 +23,58 @@ export default function Drawer(props: DrawerProps) {
     const { t } = useTranslation()
     const [drawerHeight, setDrawerHeight] = useState(props.handle ? HANDLE_HEIGHT : 0)
     const [isDraggingDrawer, setIsDraggingDrawer] = useState(false)
-    const [dragStartY, setDragStartY] = useState(0)
-    const [lastDelta, setLastDelta] = useState(0)
 
-    const handleDrawerMouseDown = (e: React.MouseEvent) => {
+    // Per-gesture values, inside the event handlers
+    const dragStartYRef = useRef(0)
+    const startHeightRef = useRef(0)
+    const currentHeightRef = useRef(0)
+    const lastYRef = useRef(0)
+    const lastDeltaRef = useRef(0)
+    const movedRef = useRef(false)
+
+    // Pointer events cover mouse, touch and pen in every modern browser
+    const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+        if (e.button !== 0) return
+        dragStartYRef.current = e.clientY
+        lastYRef.current = e.clientY
+        startHeightRef.current = drawerHeight
+        currentHeightRef.current = drawerHeight
+        lastDeltaRef.current = 0
+        movedRef.current = false
         setIsDraggingDrawer(true)
-        setDragStartY(e.clientY)
     }
 
-    const handleDrawerTouchStart = (e: React.TouchEvent) => {
-        setIsDraggingDrawer(true)
-        setDragStartY(e.touches[0].clientY)
-    }
-
-    const handleTouchMove = (e: TouchEvent) => {
+    const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
         if (!isDraggingDrawer) return
-        const delta = dragStartY - e.touches[0].clientY
-        const newHeight = Math.min(window.innerHeight * 0.9, Math.max(HANDLE_HEIGHT, drawerHeight + delta))
+        const total = dragStartYRef.current - e.clientY
+        if (!movedRef.current && Math.abs(total) > 5) {
+            movedRef.current = true
+            e.currentTarget.setPointerCapture(e.pointerId)
+        }
+        if (!movedRef.current) return
+        lastDeltaRef.current = lastYRef.current - e.clientY // flick detection
+        lastYRef.current = e.clientY
+        const newHeight = Math.min(window.innerHeight * 0.9, Math.max(HANDLE_HEIGHT, startHeightRef.current + total))
+        currentHeightRef.current = newHeight
         setDrawerHeight(newHeight)
-        setDragStartY(e.touches[0].clientY)
-        setLastDelta(delta)
     }
 
-    const handleMouseUp = () => {
+    const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+        if (!isDraggingDrawer) return
+        if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
         setIsDraggingDrawer(false)
+        if (!movedRef.current) return // click
+        const lastDelta = lastDeltaRef.current
         if (lastDelta < -15) closeDrawer()
         else if (lastDelta > 15) openDrawer()
-        else if ((drawerHeight - HANDLE_HEIGHT) > window.innerHeight * 0.2) openDrawer()
+        else if ((currentHeightRef.current - HANDLE_HEIGHT) > window.innerHeight * 0.2) openDrawer()
         else closeDrawer()
+    }
+
+    const handleClick = () => {
+        if (movedRef.current) { movedRef.current = false; return } // drag
+        if (isDrawerOpen()) closeDrawer()
+        else openDrawer()
     }
 
     const openDrawer = () => {
@@ -73,19 +97,6 @@ export default function Drawer(props: DrawerProps) {
         setDrawerHeight(props.open ? window.innerHeight * (props.openHeightPercent / 100) : (props.handle ? HANDLE_HEIGHT : 0))
     }, [props.openHeightPercent])
 
-    useEffect(() => {
-        if (isDraggingDrawer) {
-            window.addEventListener('touchmove', handleTouchMove)
-            window.addEventListener('mouseup', handleMouseUp)
-            window.addEventListener('touchend', handleMouseUp)
-            return () => {
-                window.removeEventListener('touchmove', handleTouchMove)
-                window.removeEventListener('mouseup', handleMouseUp)
-                window.removeEventListener('touchend', handleMouseUp)
-            }
-        }
-    }, [isDraggingDrawer])
-
     // if (!props.handle && !props.open) return null
 
     return (
@@ -100,9 +111,11 @@ export default function Drawer(props: DrawerProps) {
             {(props.handle || props.open) && (
                 <div
                     className={styles.drawerHandle}
-                    onMouseDown={handleDrawerMouseDown}
-                    onTouchStart={handleDrawerTouchStart}
-                    onClick={isDrawerOpen() ? closeDrawer : openDrawer}>
+                    onPointerDown={handlePointerDown}
+                    onPointerMove={handlePointerMove}
+                    onPointerUp={handlePointerUp}
+                    onPointerCancel={handlePointerUp}
+                    onClick={handleClick}>
                     {props.showBackButton && props.open && <FaArrowLeft size={25} className={styles.handleIcon} onClick={(e) => {
                         e.stopPropagation()
                         props.onBackButtonClick?.()

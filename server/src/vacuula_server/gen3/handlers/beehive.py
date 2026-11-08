@@ -14,14 +14,11 @@ from sqlalchemy import select
 
 from typing import TYPE_CHECKING, Literal
 
-from vacuula_server.env import get_host_ip
 if TYPE_CHECKING:
     from vacuula_server.handlers.router import RouterHandler
 
 
 logger = logging.getLogger(__name__)
-ip = get_host_ip()
-hostname = f"vacuula-local-{ip.replace('.', '-')}.nip.io"
 
 def post_links(req: RouterHandler) -> None:
     """POST /links - link robot to server"""
@@ -29,8 +26,8 @@ def post_links(req: RouterHandler) -> None:
     if not (data := req.read_json()): return
     if not (serial := get_robot_serial(req)): return
 
-    password = data.get("secret_key", "")
-    name = data.get("name", "")
+    password: str | None = data.get("secret_key", "")
+    name: str | None = data.get("name", "")
 
     if not password or not name:
         logger.error("Password or name missing for robot %s", serial)
@@ -39,17 +36,26 @@ def post_links(req: RouterHandler) -> None:
 
     logger.debug("Linking robot %s", serial)
 
+    if "--IV--" not in name:
+        logger.error("Installer version was not sent! %s: %s", serial, name)
+        req.send_bad_request("no installer version sent")
+        return
+
+    name, installed_with = name.split("--IV--", 1)
+
     # if serial exists, update password, else create new robot
     with get_session() as session:
         robot = session.scalar(select(Robot).where(Robot.serial == serial))
         gen3_data = session.scalar(select(Gen3Data).where(Gen3Data.robot == serial))
+
         if robot and gen3_data:
             logger.debug("Robot %s already exists, updating password", serial)
             gen3_data.password = password
+            gen3_data.installed_with = installed_with
         else:
             logger.debug("Creating new robot %s", serial)
             robot = Robot(serial=serial, type="neato.gen3", name=name)
-            gen3_data = Gen3Data(robot=serial, password=password)
+            gen3_data = Gen3Data(robot=serial, password=password, installed_with=installed_with)
     
         if not db_commit(session, req, robot, gen3_data):
             return
@@ -86,7 +92,7 @@ def upload_init(req: RouterHandler, upload_type: Literal["maps", "logs"]) -> Non
 
     res = {
         "id": map_id,
-        "post_url": hostname,
+        "post_url": "vacuula.local",
         "params": {
             "key": serial,
             "AWSAccessKeyId": upload_type,
@@ -102,6 +108,7 @@ def upload_init(req: RouterHandler, upload_type: Literal["maps", "logs"]) -> Non
 
 
 
+# TODO: this happens twice for new maps, later on don't rerun the parsing for already done hash checks! 
 def upload_finish(req: RouterHandler, upload_type:Literal["maps", "logs"], job_id: str) -> None:
     """PUT /maps/upload_jobs/{id} - update upload job status - robot done"""
     if not (data := req.read_json()): return
@@ -159,22 +166,37 @@ def upload_finish(req: RouterHandler, upload_type:Literal["maps", "logs"], job_i
     manifest_path = f"{job_folder}/manifest.json"
     floormap_meta, _ = parse_session(floor_map_path, run_map_path, job_folder)
 
+    base = (floormap_meta["dock"]["normalised_x"], floormap_meta["dock"]["normalised_y"])
+    valid = run['valid_as_persistent_map']
+
     with get_session() as session:
+        pmap = session.get(PersistentMap, run_id)
+        if pmap is None:
+            session.add(PersistentMap(
+                id=run_id,
+                robot=serial,
+                name="(unnamed)",
+                base=base,
+                enabled=valid,
+                in_maps_list=valid,
+            ))
+        else:
+            logger.debug("Persistent map %s exists, updating", run_id)
+            pmap.base = base
+            # an upload during the run is not yet valid; promote once a later upload is
+            if valid and not pmap.in_maps_list:
+                pmap.in_maps_list = True
+                pmap.enabled = True
 
-        session.add(PersistentMap(
-            id=run_id,
-            robot=serial,
-            name="(unnamed)",
-            base=(floormap_meta["dock"]["normalised_x"], floormap_meta["dock"]["normalised_y"]),
-            enabled=run['valid_as_persistent_map'],
-            in_maps_list=run['valid_as_persistent_map']
-        ))
-
-        session.add(Gen3__Run(
-            id=run_id,
-            robot=serial,
-            persistent_map=run_id,
-            run=run
-        ))
+        grun = session.get(Gen3__Run, run_id)
+        if grun is None:
+            session.add(Gen3__Run(
+                id=run_id,
+                robot=serial,
+                persistent_map=run_id,
+                run=run,
+            ))
+        else:
+            grun.run = run
 
         session.commit()

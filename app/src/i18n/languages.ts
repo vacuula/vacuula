@@ -10,7 +10,9 @@ export interface AppLanguage {
 export const APP_LANGUAGES: AppLanguage[] = [
     { code: 'en', label: 'English' },
     { code: 'it', label: 'Italiano' },
-    { code: 'pt', label: 'Português' }
+    { code: 'pt', label: 'Português' },
+    { code: 'fr', label: 'Français' },
+    { code: 'de', label: 'Deutsch' },
 ]
 
 export const DEFAULT_LANGUAGE = 'en'

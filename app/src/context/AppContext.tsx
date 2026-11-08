@@ -1,6 +1,6 @@
 import { createContext, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Http, type LoadingState, type ServerInfo } from '../http'
+import { BASE_PATH, Http, type LoadingState, type ServerInfo } from '../http'
 import { GEN3_COMMANDS } from '../http/gen3'
 import type { UseState } from '../pages/map/types'
 import { Neato, RobotType, type QuickRobotInfo, type Robot } from '../types'
@@ -9,7 +9,8 @@ import { OrbitalServices, type AnyEvent } from '../types/neato/gen4'
 import { persistentMapsLoader } from '../loaders/resources'
 import { useTheme } from '../theme'
 import Loading from '../pages/loading/loading'
-import { ServerUnreachable } from '../components/require/emptyState'
+import { ServerHasOutdatedRobot, ServerUnreachable } from '../components/require/emptyState'
+import { isRobotOutdated } from '../utils/version'
 
 interface AppContextType {
     serverInfo: ServerInfo,
@@ -55,13 +56,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const [isLoading, setIsLoading] = useState(false)
     const [loadingState, setLoadingState] = useState<LoadingState>({ isLoading: false })
     const [message, setMessage] = useState<string | null>(null)
+    const [hasOutdatedRobot, setHasOutdatedRobot] = useState(false)
+    const [serverInfo, setServerInfo] = useState<ServerInfo>()
+    const [serverInfoError, setServerInfoError] = useState(false)
 
     useEffect(() => {
         Http.setLoadingStateCallback(setLoadingState)
     }, [])
 
-    const [serverInfo, setServerInfo] = useState<ServerInfo>()
-    const [serverInfoError, setServerInfoError] = useState(false)
+    useEffect(() => {
+        if (!robots || !serverInfo) return
+        const hasOutdated = Object.values(robots).some(
+            r => r?.connected && r.installed_with && isRobotOutdated(r.installed_with, serverInfo.min_installer_version)
+        )
+        setHasOutdatedRobot(hasOutdated)
+    }, [robots, serverInfo])
+
 
     const loadServerInfo = () => {
         setServerInfoError(false)
@@ -161,7 +171,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             if (firstOnline) connectToRobot(res.data, firstOnline[0], firstOnline[1].type, firstOnline[1].name)
         });
 
-        const events = new EventSource('/api/events')
+        const events = new EventSource(`${BASE_PATH}/api/events`);
         events.addEventListener('robots', (event) => {
             const data = JSON.parse(event.data) as QuickRobotInfo
             setRobots(data)
@@ -181,7 +191,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (!robot) return;
 
         const events = new EventSource(
-            `/api/robot/${robot.serial}/connect`,
+            `${BASE_PATH}/api/robot/${robot.serial}/connect`,
         );
 
         events.onopen = () => {
@@ -282,6 +292,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
             ? <ServerUnreachable onRetry={loadServerInfo} />
             : <Loading />
     }
+
+    if (hasOutdatedRobot && robots) return <ServerHasOutdatedRobot robots={robots} serverInfo={serverInfo} />
 
     const value: AppContextType = {
         serverInfo,

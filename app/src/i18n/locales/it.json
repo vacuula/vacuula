@@ -1,5 +1,5 @@
 {
-    "String-version": "1",
+    "String-version": "4",
     "common": {
         "save": "Salva",
         "cancel": "Annulla",
@@ -93,7 +93,13 @@
         "modeSpotInfo": "Pulisce un’area delimitata da altezza e larghezza.",
         "mapModeHint": "La modalità Mappa è disponibile quando il robot è sulla base.",
         "height": "Altezza",
-        "width": "Larghezza"
+        "width": "Larghezza",
+        "btnExplain": {
+            "locate": "Non trovi il robot?",
+            "mode": "Modalità",
+            "navigation": "Navigazione",
+            "cleaning": "Pulizia"
+        }
     },
     "runs": {
         "entryTitle": "Pulizia: {{startedBy}} | {{date}}",
@@ -108,7 +114,9 @@
         "pickedUp_one": "sollevato {{count}} volta",
         "pickedUp_other": "sollevato {{count}} volte",
         "durationLong": "{{hours}} h {{minutes}} min {{seconds}} s",
-        "durationShort": "{{minutes}} min {{seconds}} s"
+        "durationShort": "{{minutes}} min {{seconds}} s",
+        "restoreMap": "Ripristina la mappa del piano eliminata",
+        "cannotRestoreMap": "La mappa è stata eliminata dal robot e non può più essere ripristinata"
     },
     "schedule": {
         "schedule": "Programmazione",
@@ -165,6 +173,8 @@
     "settings": {
         "serial": "Numero di serie: {{serial}}",
         "birthday": "Data di produzione: {{date}}",
+        "batteryCycles": "Cicli della batteria: {{cycles}}",
+        "robotModel": "Modello: {{model}}",
         "robotSettings": "Impostazioni del robot",
         "forceFloorplan": "Forza l’uso della mappa del piano",
         "robotLanguage": "Lingua",
@@ -184,6 +194,12 @@
         "theme_dark": "Scuro",
         "theme_soft": "Scuro attenuato",
         "theme_light": "Chiaro",
+        "mapShapeSelect": "Forma dei punti della mappa",
+        "mapShape": {
+            "circle": "Cerchio",
+            "square": "Quadrato",
+            "heart": "Cuore"
+        },
         "units": "Unità di misura",
         "units_metric": "Metriche (m², cm)",
         "units_imperial": "Imperiali (ft², ft)",
@@ -199,6 +215,11 @@
         "title": "Connessione al server non riuscita",
         "subtitle": "L’app non riesce a connettersi al server Vacuula. Verifica che il server sia in esecuzione e raggiungibile da questo dispositivo.",
         "mdnsDisclaimer": "Se usi mDNS, accedendo tramite vacuula.local, il dispositivo potrebbe impiegare un po’ di tempo a risolvere l’indirizzo IP del server. Se il problema persiste, prova a riavviare il browser.",
+        "retry": "Riprova"
+    },
+    "hasOutdatedRobot": {
+        "title": "Uno o più robot richiedono un aggiornamento",
+        "subtitle": "Stai usando la versione {{serverVersion}} del server, che richiede Vacuula Installer {{minInstallerVersion}} o successivo. Esegui di nuovo l’installer per i robot elencati usando la versione più recente.",
         "retry": "Riprova"
     },
     "robotErrorCode": {
@@ -305,7 +326,7 @@
                 "exploration_done": "Nuova mappa del piano disponibile",
                 "exploration_fail_similar_maps": "Mappa del piano duplicata. Questa mappa è troppo simile a una già esistente. Sposta la base di ricarica in un altro punto di questo piano e riprova.",
                 "exploration_fail_sparse_maps": "L’ambiente ha troppo pochi punti di riferimento. Il robot non riesce a riconoscere quest’area. Sposta la base di ricarica in un altro punto di questo piano e riprova.",
-                "nav_floorplan_load_fail": "Errore di caricamento della mappa del piano. Prova ad avviare di nuovo la pulizia. Se il problema persiste, contatta l’assistenza clienti.",
+                "nav_floorplan_load_fail": "Errore di caricamento della mappa del piano. Prova ad avviare di nuovo la pulizia. Se il problema persiste, contatta il team Vacuula.",
                 "nav_floorplan_localization_fail": "Errore di navigazione sulla mappa del piano. Verifica che la base di ricarica non sia stata spostata. Metti il robot sulla base e riprova. Se il problema persiste, vai alla mappa del piano, elimina quella attuale e creane una nuova.",
                 "nav_floorplan_localization_fail_similar_maps": "Questo piano è troppo simile a un’altra mappa. Rimuovi eventuali nuovi oggetti vicino alla base di ricarica e riprova. Se il problema persiste, elimina la mappa di questo piano, sposta la base e crea una nuova mappa.",
                 "nav_floorplan_not_created": "Mappa del piano non creata. Per creare una mappa, il robot deve completare una sessione di pulizia e rientrare alla base. Riprova.",
@@ -351,18 +372,18 @@
                 "maint_customer_support_qa": "Riavviami",
                 "maint_filter_change": "Promemoria: controlla il filtro, potrebbe essere ora di sostituirlo.",
                 "maint_brush_change": "Promemoria: controlla la spazzola, potrebbe essere ora di sostituirla.",
-                "swup_file_not_found": "Controlla la connessione a Internet e riprova a scaricare l’aggiornamento. Se il problema persiste, contatta l’assistenza clienti.",
-                "swup_file_download_error": "Controlla la connessione a Internet e riprova a scaricare l’aggiornamento. Se il problema persiste, contatta l’assistenza clienti.",
-                "swup_file_size_mismatch": "Errore di configurazione del server o del file. Contatta l’assistenza clienti.",
-                "swup_file_store_error": "Riavvia il robot e riprova a scaricare l’aggiornamento. Se il problema persiste, contatta l’assistenza clienti.",
-                "swup_invalid_signature": "Errore di configurazione del server o del file. Contatta l’assistenza clienti.",
-                "swup_invalid_file_format": "Errore di configurazione del server o del file. Contatta l’assistenza clienti.",
-                "swup_incorrect_vendor": "Errore di configurazione del server o del file. Contatta l’assistenza clienti.",
-                "swup_incorrect_model": "Errore di configurazione del server o del file. Contatta l’assistenza clienti.",
-                "swup_unsupported_version": "Errore di configurazione del server o del file. Contatta l’assistenza clienti.",
-                "swup_flash_fail": "Riavvia il robot e riprova a scaricare l’aggiornamento. Se il problema persiste, contatta l’assistenza clienti.",
+                "swup_file_not_found": "Controlla la connessione a Internet e riprova a scaricare l’aggiornamento. Se il problema persiste, contatta il team Vacuula.",
+                "swup_file_download_error": "Controlla la connessione a Internet e riprova a scaricare l’aggiornamento. Se il problema persiste, contatta il team Vacuula.",
+                "swup_file_size_mismatch": "Errore di configurazione del server o del file. Contatta il team Vacuula.",
+                "swup_file_store_error": "Riavvia il robot e riprova a scaricare l’aggiornamento. Se il problema persiste, contatta il team Vacuula.",
+                "swup_invalid_signature": "Errore di configurazione del server o del file. Contatta il team Vacuula.",
+                "swup_invalid_file_format": "Errore di configurazione del server o del file. Contatta il team Vacuula.",
+                "swup_incorrect_vendor": "Errore di configurazione del server o del file. Contatta il team Vacuula.",
+                "swup_incorrect_model": "Errore di configurazione del server o del file. Contatta il team Vacuula.",
+                "swup_unsupported_version": "Errore di configurazione del server o del file. Contatta il team Vacuula.",
+                "swup_flash_fail": "Riavvia il robot e riprova a scaricare l’aggiornamento. Se il problema persiste, contatta il team Vacuula.",
                 "swup_success": "Aggiornamento software riuscito",
-                "log_upload_failed": "Copia dei file di log non riuscita. Contatta l’assistenza clienti.",
+                "log_upload_failed": "Copia dei file di log non riuscita. Contatta il team Vacuula.",
                 "invalid_json": "JSON non valido",
                 "bad_request": "Richiesta non valida",
                 "command_not_found": "Il comando non esiste",
@@ -374,7 +395,7 @@
                 "max_boundaries_exceeded": "Numero massimo di confini superato",
                 "clean_done": "Pulizia terminata",
                 "exploration_fail": "Impossibile creare la mappa del piano. Metti il robot sulla base e riprova.",
-                "nav_floorplan_setup_fail": "Errore di preparazione della mappa del piano. Prova ad avviare di nuovo la pulizia. Se il problema persiste, contatta l’assistenza clienti.",
+                "nav_floorplan_setup_fail": "Errore di preparazione della mappa del piano. Prova ad avviare di nuovo la pulizia. Se il problema persiste, contatta il team Vacuula.",
                 "batt_safety_shutdown": "Spegnimento di sicurezza della batteria. Lasciami raffreddare, poi riavviami",
                 "batt_temperature_warning": "Avviso sulla temperatura della batteria. Lasciami raffreddare prima della pulizia",
                 "batt_deep_discharge": "Batteria quasi completamente scarica. Mettimi sulla base per la ricarica",

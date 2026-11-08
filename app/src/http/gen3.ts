@@ -1,6 +1,7 @@
 import { Http } from "../http"
 import type { NoGoLine, SetZone, Zone } from "../pages/map/types"
 import type { ScheduleEvent } from "../pages/schedule/types"
+import type { Neato } from "../types"
 import type { Preferences } from "../types/neato/gen3"
 import type { GetMapBoundariesResponse, GetPreferencesResponse, GetScheduleResponse, RobotBaseResponse } from "../types/neato/gen3/api"
 import { CleaningCategory, CleaningMode, CleaningNavigationMode, type GetRobotStateResponse } from "../types/neato/gen3/state"
@@ -16,7 +17,7 @@ function getRobotState(serial: string) {
 }
 
 function getGeneralInfo(serial: string) {
-    return Http.sendCmd(serial, { cmd: "getGeneralInfo" })
+    return Http.sendCmd<Neato.Gen3.GetGeneralInfoResponse>(serial, { cmd: "getGeneralInfo" })
 }
 
 function getRobotInfo() {

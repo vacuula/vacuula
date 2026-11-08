@@ -7,6 +7,7 @@ import threading
 from sqlalchemy import select
 
 from vacuula_server.db import get_session
+from vacuula_server.gen3.data import Gen3Data
 from vacuula_server.gen4.data import Gen4Data
 from vacuula_server.models.robot import Robot
 from vacuula_server.state import put_drop_oldest, robot_connections
@@ -25,10 +26,15 @@ _lock = threading.Lock()
 logger = logging.getLogger(__name__)
 
 
+# TODO: since this function runs quite a lot, look into if it needs to be optimized!
 def robots_snapshot() -> dict:
     """Robot list with connection status, keyed by serial (also used by GET /app/robots)."""
     with get_session() as session:
         robots = session.execute(select(Robot)).scalars().all()
+        installed_with_map = {
+            robot: installed_with
+            for robot, installed_with in session.execute(select(Gen3Data.robot, Gen3Data.installed_with))
+        }
         labels = {
             robot: label
             for robot, label in session.execute(select(Gen4Data.robot, Gen4Data.label_serial))
@@ -40,6 +46,7 @@ def robots_snapshot() -> dict:
             "connected": robot.serial in robot_connections,
             "name": robot.name,
             **({"label_serial": labels.get(robot.serial)} if robot.type == "neato.gen4" else {}),
+            **({"installed_with": installed_with_map.get(robot.serial)} if robot.type == "neato.gen3" else {}),
         }
         for robot in robots
     }

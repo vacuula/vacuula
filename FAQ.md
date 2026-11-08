@@ -22,10 +22,7 @@ https://www.digitalocean.com/community/tutorials/how-to-install-and-use-docker-o
 Currently all robots require internet to reach `pool.ntp.org` to set the time correctly. With the next update we plan to include an small ntp compatible time-endpoint so that a connection to `pool.ntp.org` is not needed. 
 
 - Gen4 (D800-D10) only have the `pool.ntp.org` dependency, we plan on fixing with next update.
-- Gen3 (D3-D7) robots also need internet for the ip lookup and an firmware made internet check. To understand how these work, please read below.
-
-> [!NOTE]
-> Gen3 robots fetch the ip of your server correctly via [nip.io](nip.io). Because of the way the robot works, if you enter an private ip it behaves as if it were in development, because of this nip.io is used to make an hostname into an ip (`vacuula-local-192-168-1-123` --> `192.168.1.123`). This requirement can be eliminated by hosting your own nip.io instance, and we plan on including this with a future release of Vacuula, however that also requires us to figure out the DNS. nip.io is open source and the only data sent to their servers is the DNS request, all other data from the robot goes directly to your server.
+- Gen3 (D3-D7) robots also need internet for an firmware made internet check. To understand how these work, please read below.
 
 > [!NOTE]
 > Gen3 robots have an firmware bound internet check to `8.8.8.8` (Google DNS). Sadly, this is not easy to disable in the firmware (we are looking into what we can do that way), however you can bypass it by rewriting 8.8.8.8 requests to your own DNS for the ip of the robot (advanced users)
@@ -55,3 +52,62 @@ If you used this button, click "Add" and then you can skip to step 11!
 In the top-bar you can: 
 - change configuration by clicking on `Configuration`
 - View the logs by clicking on `Log`
+
+## Install as an App in TrueNAS SCALE
+[TrueNAS guide on "Installing Custom Apps"](https://apps.truenas.com/managing-apps/installing-custom-apps/)
+If you are installing Vacuula Server as an Application on TrueNAS there are a couple of points to be aware of, this guide will walk you through both of them.
+1. TrueNAS already uses port 80 for its own web UI. You will need to choose a custom port for VACUULA_PORT, such as 8080.
+2. TrueNAS already has an Avahi mDNS Server setup which blocks Vacuula from starting its own one successfully. This can be worked around by using a custom script.
+
+### Install the app
+1. Navigate to your TrueNAS UI
+2. Click `Apps` in the side Navigation
+3. Click `Discover Apps`
+4. Click `Custom App`
+5. Fill out the fields as follows:
+   1. Application Name: `vacuula`
+   2. Version: Leave as the default (this is the version of the 'Custom App' template TrueNAS use, _not_ the version of Vacuula)
+   3. Image Repository: `ghcr.io/vacuula/vacuula`
+   4. Tag: `latest`, if 1.1.0 has been formally released. If not use the latest beta version e.g. `1.1.0-b1`
+   5. Pull Policy: If you are using `latest` then `Always pull an image, even if already present on the host`. Otherwise you could also pick `Pull the image if not already present on the host`
+   6. Hostname: `vacuula`
+   7. Environment Variables - add the following environment variables
+      1. `GEN3_PORT`: `335`, or any port that is free on your NAS
+      2. `GEN4_PORT`: `3443`, or any port that is free on your NAS
+      3. `VACUULA_PORT`: `8080`, or any port that is free on your NAS. This must not be `80` - the default.
+      4. `GEN3_ENABLED`: `True`
+      5. `GEN4_ENABLED`: `True`
+      6. `MDNS_ENABLED`: `True`
+   8. Host Network: `checked`, this is necessary to enable the web UI, and the other ports, to be accessible from your network
+   9. Portal Configuration (This is optional, but allows click through access to the Vacuula Web UI from the TrueNAS UI)
+      1. Name: `Web UI`
+      2. Protocol: `HTTP`
+      3. Use Node IP: `Checked`
+      4. Port: `8080`, or the value you set for `VACUULA_PORT` earlier
+      5. Path: `/`
+   10. Add a single storage configuration, with a mount path of `/server/data`. The exact setup you want will depend on your personal preference. Do not set the type to `Tmpfs`. An example setup is as follows:
+      1. Type: `Host Path`
+      2. Mount Path: `/server/data`
+      3. Host Path: `/mnt/myPool/dataset/vacuula`
+   11. Save the application.
+6. The app will likely be crashing at this point, with an error about how port 5353 is already in use. The next section will fix that error.
+
+### Allow Vacuula to start an mDNS server
+These instructions involve using Advanced TrueNAS configurations that can result in a broken TrueNAS installation. Proceed at your own risk.
+
+We will be telling TrueNAS to modify the Avahi Service configuration to allow multiple Avahi stacks, so that Vacuula can start its own mDNS server to enable the auto discovery to work.
+1. Navigate to your TrueNAS UI
+2. Click on `System` > `Advanced Settings` on the side navigation
+3. Scroll to the `Init/Shutdown Scripts` section
+4. Click `Add`
+5. Close the warning dialog.
+6. Fill out the fields as follows
+   1. Description: `Allow other Avahi Stacks`
+   2. Type: `Command`
+   3. Command: `sed -i "/disallow-other-stacks=yes/c\disallow-other-stacks=no" /etc/avahi/avahi-daemon.conf && systemctl restart avahi-daemon.service`
+   4. When: `Post-Init`
+   5. Enabled: `Checked`
+   6. Timeout: `10`
+7. Save the configuration
+8. Restart your NAS (or manually run the Command in a Shell and Restart the Vacuula application)
+9. At this point you should be able to access the Vacuula Web UI from your network and it should be ready for you to use the installer

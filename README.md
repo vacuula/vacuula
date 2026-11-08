@@ -81,6 +81,7 @@ We provide you with a couple of ways to set up the server
 - To see logs do `docker compose logs vacuula`
 - To stop vacuula `docker compose down`
 - To start vacuula `docker compose up -d`
+- To update vacuula `docker compose pull`
 - To permanently remove stored data `docker volume rm vacuula-data` <i>Vacuula needs to be stopped first</i>
 
 
@@ -92,39 +93,43 @@ We have made an easy to use installer to set your robot up!
 
 | [Windows][windows] | [Linux][linux]           | [Mac (M1 and newer)][mac-arm] | [Mac (Intel-based)][mac-intel] |
 |--------------------|--------------------------|-------------------------------|--------------------------------|
-| Win 10, Win 11     | Yes (need dialout)       |                               | 15.4                           |
+| Win 10, Win 11     | Yes (need dialout)       |                               | 13.7.8, 15.4                   |
 | Gen3, Gen4         | Gen3, Gen4               | (Gen4 will not work)          | Gen3 (Gen4 does not work)      |
 
 - <i>Download by clicking the os link, table shows tested/verified systems</i>
 - <i>Linux: run `sudo usermod -aG dialout $USER` to give your user dialout, then reboot your computer!</i>
 
-[windows]:   https://github.com/vacuula/installer/releases/latest/download/VacuulaInstaller--windows.exe
-[linux]:     https://github.com/vacuula/installer/releases/latest/download/VacuulaInstaller--linux.AppImage
-[mac-arm]:   https://github.com/vacuula/installer/releases/latest/download/VacuulaInstaller--macos-arm64.zip
-[mac-intel]: https://github.com/vacuula/installer/releases/latest/download/VacuulaInstaller--macos-intel.zip
+[windows]:   https://github.com/vacuula/installer/releases/latest/download/VacuulaInstaller-windows.exe
+[linux]:     https://github.com/vacuula/installer/releases/latest/download/VacuulaInstaller-linux.AppImage
+[mac-arm]:   https://github.com/vacuula/installer/releases/latest/download/VacuulaInstaller-macos-arm64.zip
+[mac-intel]: https://github.com/vacuula/installer/releases/latest/download/VacuulaInstaller-macos-intel.zip
 
 <i>Source code is available at https://github.com/vacuula/installer</i>
 <br><i>If you have a more exotic setup and cannot run this installer in any way - get in touch and we will figure something out!</i>
 
 
 ## Configure server
-### Ports used
-| Port | Info                                  |
-|------|---------------------------------------|
-| 80   | Server, Webapp (Customizable)         |
-| 443  | Gen3 robots, D3-D7 (Not customizable) |
-| 3443 | Gen4 robots, D8-D10 (Customizable)    |
+### Ports used by default
+| Port | Option       | Used by                                                    |
+|------|--------------|------------------------------------------------------------|
+| 8050 | VACUULA_PORT | Server, Webapp, Installer. (HTTP, reverse proxy for HTTPS) |
+| 335  | GEN3_PORT    | Gen3 robots, D3-D7                                         |
+| 3443 | GEN4_PORT    | Gen4 robots, D8-D10                                        |
 
-<i>Gen3 robots sadly require port 443, and if enabled, the Vacuula server and webapp are also hosted here for PWAs to work </i>
+<i>The installer instructs the robot what port it should connect to. If you want to use HTTPS for the Webapp, please put the Webapp (default port 80) behind a reverse proxy. Other ports cannot be reverse provied.</i>
 
 ### Configuration
-| Option       | Default | Info                                                                                        |
-|--------------|---------|---------------------------------------------------------------------------------------------|
-| GEN4_PORT    | 3443    | Default port the Gen4 robots will connect to the server on                                  |
-| VACUULA_PORT | 80      | Default port that you can reach the webapp/api on                                           |
-| GEN3_ENABLED | True    | If server should support for Gen3 robots, can be useful since Gen3 devices require port 443 |
-| GEN4_ENABLED | True    | If server should support for Gen4 robots                                                    |
-| MDNS_ENABLED | True    | If server should run MDNS for autodiscovering                                               |
+| Option       | Default | Info                                                                                                                |
+|--------------|---------|---------------------------------------------------------------------------------------------------------------------|
+| GEN3_PORT    | 335     | Default port the Gen3 robots will connect to the server on                                                          |
+| GEN4_PORT    | 3443    | Default port the Gen4 robots will connect to the server on                                                          |
+| VACUULA_PORT | 8050    | Default port that you can reach the webapp/api on                                                                   |
+| GEN3_ENABLED | True    | If server should support for Gen3 robots                                                                            |
+| GEN4_ENABLED | True    | If server should support for Gen4 robots                                                                            |
+| MDNS_ENABLED | True    | If server should run MDNS for auto-discovering                                                                      |
+| TZ           | Etc/UTC | If timezone of computer cannot get fetched, please set this to the correct timezone for schedules to work correctly |
+| HOST_IP      | 0.0.0.0 | What IP the Vacuula server hosts to, useful if you have multiple IP addresses                                       |
+| LOG_LEVEL    | info    | debug|info|warning|error                                                                                            |
 
 ### Platform architecture
 We have currently only tested and verified on `ARM 64-bit` and `x86 64-bit`. However, we want the server to support at least `ARM 32-bit` and possibly `x86 32-bit` as well. We are looking into what we can do to make sure these platforms are also supported. The main reason behind wanting to support them is that the server can run on older SBCs. 

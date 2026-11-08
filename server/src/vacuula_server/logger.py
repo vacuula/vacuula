@@ -6,13 +6,14 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 from vacuula_server.constants import DATA_DIR, LOG_BACKUP_COUNT
+from vacuula_server.env import LOG_LEVEL
 
 def get_log_file_path() -> Path:
     return DATA_DIR / "vacuula.log"
 
 def setup_logging() -> None:
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.DEBUG)
+    root_logger.setLevel(LOG_LEVEL)
 
     # Avoid duplicate handlers.
     if root_logger.handlers:
@@ -24,7 +25,7 @@ def setup_logging() -> None:
     )
 
     console = logging.StreamHandler(sys.stderr)
-    console.setLevel(logging.DEBUG)
+    console.setLevel(LOG_LEVEL)
     console.setFormatter(formatter)
     root_logger.addHandler(console)
 
@@ -37,7 +38,7 @@ def setup_logging() -> None:
         encoding="utf-8",
     )
 
-    handler.setLevel(logging.DEBUG)
+    handler.setLevel(LOG_LEVEL)
     handler.setFormatter(formatter)
     root_logger.addHandler(handler)
 

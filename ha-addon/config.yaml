@@ -1,6 +1,6 @@
 # config for Home Assistant add-on
 name: Vacuula
-version: "latest"
+version: "1.1.0"
 slug: vacuula
 description: custom server for the undead robot vacuum cleaners - revive your Neato with the power of Vacuula
 url: "https://github.com/vacuula/vacuula"
@@ -12,21 +12,33 @@ host_network: true
 boot: auto
 image: "ghcr.io/vacuula/vacuula"
 
+ingress: true
+ingress_port: 0
+panel_icon: mdi:robot-vacuum-variant
+
 map:
   - type: addon_config
     read_only: false
     path: /server/data
 
 options:
+  GEN3_PORT: 335
   GEN4_PORT: 3443
-  VACUULA_PORT: 80
+  VACUULA_PORT: 8050
   GEN3_ENABLED: true
   GEN4_ENABLED: true
   MDNS_ENABLED: true
+  HA_INGRESS: true
+  LOG_LEVEL: "info"
 
 schema:
+  GEN3_PORT: int(100,999)
   GEN4_PORT: int
   VACUULA_PORT: int
   GEN3_ENABLED: bool
   GEN4_ENABLED: bool
   MDNS_ENABLED: bool
+  LOG_LEVEL: "list(debug|info|warning|error)?"
+  HA_INGRESS: "bool?"
+  TZ: "str?"
+  HOST_IP: "str?"

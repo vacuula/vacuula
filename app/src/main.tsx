@@ -7,10 +7,11 @@ import './theme'
 import './mascot'
 import './index.css'
 import App from './app.tsx'
+import { BASE_PATH } from './http.ts';
 
 createRoot(document.getElementById('root')!).render(
   <AppProvider>
-    <BrowserRouter basename='/web'>
+    <BrowserRouter basename={BASE_PATH}>
       <App />
     </BrowserRouter>
   </AppProvider>,

@@ -13,6 +13,8 @@ export interface QuickRobotInfo {
         type: RobotType,
         name: string,
         connected: boolean,
+
+        installed_with?: string, // only for gen3
         label_serial?: string, // only for gen4
     }
 }

@@ -14,6 +14,7 @@ import { useGetPromotedFloorplan } from '../../utils/floormaps'
 import { useRobot } from '../../context/useRobot'
 import type { NoGoLine, UseState, Zone } from '../../components/map/types'
 import { isGen4D10 } from '../../components/topbar/robotInfo'
+import { formatUtcOffset } from '../../utils/clockTime'
 
 // For now schduling will be only for cleaning.start for ONE run, later on scheduling can be more advanced
 
@@ -56,7 +57,8 @@ export default () => {
         time: '',
     })
 
-    const { robot } = useRobot()
+    const { robot, serverInfo } = useRobot()
+    const offset = serverInfo.utc_offset_minutes ?? 0
 
     const setFormFromEvent = (event: Neato.Gen4.CommandEvent) => {
         setScheduleForm(event);
@@ -120,6 +122,17 @@ export default () => {
 
             <div className={styles.featureList}>
 
+                <div className={`${styles.item} ${styles.staticItem}`}>
+                    <div className={styles.info}>
+                        <span>{t('schedule.schedule')}</span>
+                        {serverInfo && (
+                            <span className={styles.type}>{serverInfo.timezone} ({formatUtcOffset(offset)})</span>
+                        )}
+                    </div>
+                </div>
+
+                <hr style={{ width: '90%' }} />
+
                 <div className={`${styles.item} ${styles.actionItem}`} onClick={() => openCleanForm()}>
                     <div className={styles.info}>
                         <span>{t('schedule.newSchedule')}</span>
@@ -175,7 +188,7 @@ export default () => {
                             { value: Neato.Gen4.CleaningMode.ECO, label: t('modes.eco') },
                             { value: Neato.Gen4.CleaningMode.TURBO, label: t('modes.turbo') },
                             // TODO: verify hardware in other gen4 robots, read more at the "isGen4D10" func
-                            ...( isGen4D10(robot) ? [
+                            ...(isGen4D10(robot) ? [
                                 { value: Neato.Gen4.CleaningMode.MAX, label: t('modes.max') },
                                 { value: Neato.Gen4.CleaningMode.AUTO, label: t('modes.auto') },
                             ] : [])

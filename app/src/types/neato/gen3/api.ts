@@ -1,7 +1,8 @@
-import type { NoGoLine, Zone } from "../../../pages/map/types";
+import type { NoGoLine, Zone } from "../../../components/map/types";
 import type { GetSchedule } from "../../../pages/schedule/types";
 import { biEnum } from "../../.helpers";
 import type { Preferences } from "./settings";
+import type { GetGeneralInfo } from "./state";
 
 
 export const RobotApiResult = biEnum({
@@ -26,6 +27,7 @@ export type GetMapBoundariesResponse = RobotBaseResponse<{
 
 export type GetScheduleResponse = RobotBaseResponse<GetSchedule>;
 export type GetPreferencesResponse = RobotBaseResponse<Preferences>;
+export type GetGeneralInfoResponse = RobotBaseResponse<GetGeneralInfo>;
 
 
 

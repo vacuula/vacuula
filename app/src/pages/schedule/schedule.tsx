@@ -14,7 +14,6 @@ import { RobotType } from '../../types'
 import Scheudle_gen4 from './scheudle_gen4'
 import { useTranslation } from 'react-i18next'
 import { dayKey } from '../../i18n/days'
-import { formatUtcOffset, localSlotToUtc, utcSlotToLocal, type Weekday } from '../../utils/clockTime'
 import { usePersistentMaps } from '../../loaders/resources'
 import type { UseState } from '../../components/map/types'
 import { fetchAllGen3Boundaries, getCachedZones } from '../../loaders/gen3Boundaries'
@@ -73,16 +72,6 @@ export default () => {
         }))
     }
 
-    /** Robot (UTC) event -> server-local time and weekday for display. */
-    const toLocal = (ev: ScheduleEvent) =>
-        utcSlotToLocal({ time: ev.startTime, day: ev.day as Weekday }, offset)
-
-    /** Form (server-local) -> UTC as the robot stores it. */
-    const toRobot = (ev: ScheduleEvent): ScheduleEvent => {
-        const utc = localSlotToUtc({ time: ev.startTime, day: ev.day as Weekday }, offset)
-        return { ...ev, startTime: utc.time, day: utc.day as RobotDay }
-    }
-
     if (!schedule) return
 
     return (
@@ -93,7 +82,7 @@ export default () => {
                     <div className={styles.info}>
                         <span>{t('schedule.schedule')}</span>
                         {serverInfo && (
-                            <span className={styles.type}>{serverInfo.timezone} ({formatUtcOffset(offset)})</span>
+                            <span className={styles.type}>{serverInfo.timezone}</span>
                         )}
                     </div>
                     <Input type="switch" skipSection={true} value={schedule.enabled} onChange={() => {
@@ -113,13 +102,12 @@ export default () => {
                 </div>
 
                 {schedule.events?.map((item, i) => {
-                    const local = toLocal(item)
                     return (
                         <div key={i} className={styles.item}>
                             <div className={styles.info}>
-                                <span>{local.time}</span>
+                                <span>{item.startTime}</span>
                                 <span className={styles.type}>
-                                    {t('schedule.gen3Summary', { day: t(`days.${dayKey(local.day)}`), mode: CleaningMode[item.mode] })}
+                                    {t('schedule.gen3Summary', { day: t(`days.${dayKey(item.day)}`), mode: CleaningMode[item.mode] })}
                                     {item.boundary && ` | ${t('schedule.gen3SummaryZone', { zone: item.boundary.name })}`}
                                 </span>
                             </div>
@@ -173,19 +161,21 @@ export default () => {
                         value={scheduleForm.startTime}
                         onChange={(startTime) => updateForm(SetScheduleForm, { startTime })} />
 
-                    <Input
-                        type="select"
-                        label={t('schedule.selectZones')}
-                        extraInfo={t('schedule.selectZonesHelp')}
-                        options={zoneOptions}
-                        allowDeselect
-                        value={scheduleForm.boundaryId}
-                        onChange={(boundaryId) => boundaryId && updateForm(SetScheduleForm, { boundaryId })}
-                    />
+                    {zoneOptions.length > 0 && (
+                        <Input
+                            type="select"
+                            label={t('schedule.selectZones')}
+                            extraInfo={t('schedule.selectZonesHelp')}
+                            options={zoneOptions}
+                            allowDeselect
+                            value={scheduleForm.boundaryId}
+                            onChange={(boundaryId) => updateForm(SetScheduleForm, { boundaryId })}
+                        />
+                    )}
 
                     <Button text={t('common.save')} style='success' onClick={() => {
                         setDrawerOpen(false)
-                        GEN3_COMMANDS.setSchedule(robot.serial, [toRobot(scheduleForm), ...schedule.events]).finally(() => getSchedule())
+                        GEN3_COMMANDS.setSchedule(robot.serial, [scheduleForm, ...schedule.events]).finally(() => getSchedule())
                     }} />
                 </div>
 

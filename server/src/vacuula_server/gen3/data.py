@@ -9,5 +9,6 @@ class Gen3Data(Base):
 
     robot: Mapped[str] = mapped_column(String, ForeignKey("robot.serial", ondelete='CASCADE'), primary_key=True)
     password: Mapped[str] = mapped_column(String, nullable=False)
+    installed_with: Mapped[str] = mapped_column(String, nullable=False)
     
     

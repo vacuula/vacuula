@@ -68,7 +68,7 @@ class RouterHandler(BaseHTTPRequestHandler):
     # Serve files from assets folder with long long cache
     # hash will change on update, and since index.html is checked per boot, will be good
     def serve_web(self):
-        relative = self.path.removeprefix("/web").split("?", 1)[0]
+        relative = self.path.split("?", 1)[0]
         requested = (WEB_ROOT / relative.lstrip("/")).resolve()
 
         if not _is_within_web_root(requested):
@@ -121,8 +121,6 @@ class RouterHandler(BaseHTTPRequestHandler):
 
     # Routing logic
     def route(self):
-        if self.path == "/web" or self.path.startswith("/web/") or self.path == "/favicon.ico":
-            return self.serve_web()
         accept = self.headers.get("Accept", "")
         
         if self.path.startswith("/api/"):
@@ -131,13 +129,15 @@ class RouterHandler(BaseHTTPRequestHandler):
             return BrainslugHandler(BEEHIVE_ROUTES, self)
         elif accept == "application/vnd.neato.cometa.v1":
             return BrainslugHandler(NUCLEO_ROUTES, self)
-        elif self.path == "/" and self.command == "GET":
+        elif self.path == "/" and self.command == "POST":
+            return BrainslugHandler(S3_ROUTES, self)
+        elif self.path == "/web" or self.path.startswith("/web/"):
             self.send_response(301)
-            self.send_header("Location", "/web")
+            self.send_header("Location", "/")
             self.send_header("Content-Length", "0")
             self.end_headers()
         else:
-            return BrainslugHandler(S3_ROUTES, self)
+            self.serve_web()
 
     def do_POST(self):
         self.route()

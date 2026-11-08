@@ -3,11 +3,15 @@ services:
     image: ghcr.io/vacuula/vacuula:latest # if you want a spesific version, you can change "latest" to the version number
     network_mode: host
     environment: # edit based on your needs
+      - GEN3_PORT=335
       - GEN4_PORT=3443
-      - VACUULA_PORT=80
+      - VACUULA_PORT=8050
       - GEN3_ENABLED=True
       - GEN4_ENABLED=True
       - MDNS_ENABLED=True
+      # - TZ=Etc/UTC # uncomment and change only if Vacuula cannot detect your timezone automatically
+      # - HOST_IP= # uncomment and change only if Vacuula cannot detect your host IP automatically
+      # - LOG_LEVEL=info # debug, info, warning, error
     volumes:
       - vacuula-data:/server/data
     restart: unless-stopped
