@@ -1,14 +1,15 @@
 name: Docker build & release
 
 # Trigger via commit message:
-#   dbuild:2.3.1-b   -> build + push image tagged 2.3.1-b
-#   dbuild:1.0.0     -> build + push image tagged 1.0.0 AND latest
-#   release:1.0.0    -> same as dbuild, plus a GitHub Release with docker-compose.yaml attached
-# When using release, making a beta (-b or similar) it will make a prerelease, if no beta marker, it will make a draft release to be published
+#   dbuild:2.3.1-b1             -> build + push image tagged 2.3.1-b1 AND beta
+#   dbuild:2.3.1-b1+test-thing  -> build + push image tagged 2.3.1-b1-test-thing only (custom build, "+" becomes "-" in docker tags)
+#   dbuild:1.0.0                -> build + push image tagged 1.0.0 AND latest
+#   release:1.0.0               -> same as dbuild, plus a GitHub Release with docker-compose.yaml attached
+# When using release, making a beta (-bX) or custom build (+...) it will make a prerelease, if not, it will make a draft release to be published
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'custom/**']
 
 permissions:
   contents: write
@@ -29,10 +30,10 @@ jobs:
           version=""
           release=false
 
-          if [[ "$COMMIT_MSG" =~ release:([0-9A-Za-z._-]+) ]]; then
+          if [[ "$COMMIT_MSG" =~ release:([0-9A-Za-z._+-]+) ]]; then
             version="${BASH_REMATCH[1]}"
             release=true
-          elif [[ "$COMMIT_MSG" =~ dbuild:([0-9A-Za-z._-]+) ]]; then
+          elif [[ "$COMMIT_MSG" =~ dbuild:([0-9A-Za-z._+-]+) ]]; then
             version="${BASH_REMATCH[1]}"
           fi
 
@@ -45,7 +46,7 @@ jobs:
             exit 0
           fi
 
-          # X.X.X -> draft release, anything else (2.3.1-b etc.) -> pre-release
+          # X.X.X -> draft release, anything else (2.3.1-b1, 2.3.1+test etc.) -> pre-release
           if [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             latest=true
             prerelease=false
@@ -54,11 +55,19 @@ jobs:
             prerelease=true
           fi
 
+          # only a plain X.X.X-bX moves the :beta tag, custom builds (+...) don't
+          beta=false
+          if [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-b[0-9]+$ ]]; then
+            beta=true
+          fi
+
           echo "version=$version"       >> "$GITHUB_OUTPUT"
+          echo "tag=${version//+/-}"    >> "$GITHUB_OUTPUT"   # docker tags can't contain "+"
           echo "release=$release"       >> "$GITHUB_OUTPUT"
           echo "latest=$latest"         >> "$GITHUB_OUTPUT"
+          echo "beta=$beta"             >> "$GITHUB_OUTPUT"
           echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
-          echo "Parsed: version=$version release=$release latest=$latest"
+          echo "Parsed: version=$version release=$release latest=$latest beta=$beta"
 
       - name: Checkout
         if: steps.parse.outputs.version != ''
@@ -104,14 +113,11 @@ jobs:
           file: build/docker/Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64
-          # TODO: right now we support only X.X.X[-bX], in the future we might want to support more complex
-          # idea: for anything else versions have to match exactly? but whatever we do, update both version
-          # parsing in both FE, BE and build script!
-          # in this script we just piggyback of when its a "prerelease"
+          # Version format: X.X.X[-bX][+build info]
           tags: |
-            ${{ steps.img.outputs.name }}:${{ steps.parse.outputs.version }}
+            ${{ steps.img.outputs.name }}:${{ steps.parse.outputs.tag }}
             ${{ steps.parse.outputs.latest == 'true' && format('{0}:latest', steps.img.outputs.name) || '' }}
-            ${{ steps.parse.outputs.prerelease == 'true' && format('{0}:beta', steps.img.outputs.name) || '' }} 
+            ${{ steps.parse.outputs.beta == 'true' && format('{0}:beta', steps.img.outputs.name) || '' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -120,11 +126,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.parse.outputs.version }}
+          TAG: ${{ steps.parse.outputs.tag }}
           PRERELEASE: ${{ steps.parse.outputs.prerelease }}
           IMAGE: ${{ steps.img.outputs.name }}
         run: |
           if [[ "$PRERELEASE" == "true" ]]; then
-            flag="--prerelease"   # e.g. 2.3.1-b: published right away as a pre-release
+            flag="--prerelease"   # e.g. 2.3.1-bX: published right away as a pre-release
           else
             flag="--draft"        # e.g. 1.0.0: stays hidden until you publish it
           fi
@@ -133,5 +140,5 @@ jobs:
             build/docker/docker-compose.yaml \
             --target "$GITHUB_SHA" \
             --title "v$VERSION" \
-            --notes "Docker image: \`$IMAGE:$VERSION\`" \
+            --notes "Docker image: \`$IMAGE:$TAG\`" \
             $flag

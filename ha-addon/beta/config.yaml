@@ -1,6 +1,6 @@
 # config for Home Assistant add-on
 name: Vacuula - BETA
-version: "1.1.1-b1"
+version: "1.1.1-b4"
 slug: vacuula-beta
 description: latest beta of Vacuula
 url: "https://github.com/vacuula/vacuula"

@@ -46,6 +46,7 @@ export default () => {
     const [currentLinePoints, setCurrentLinePoints] = useState<Point[]>([])
     const [closedAsPolygon, setClosedAsPolygon] = useState(false)
     const [persistentMap, setPersistentMap] = useState<string>()
+    const firstLoad = useRef(true);
 
     const [mode, setMode] = useState<MapMode>('maps')
     const [returnFromEditMode, SetReturnFromEditMode] = useState<'boundaries' | 'boundary-info'>('boundaries')
@@ -64,6 +65,17 @@ export default () => {
         updatePersistentMaps(); // get maps when this page is opened
     }, [])
 
+    useEffect(() => {
+        if (!persistentMaps) return;
+        if (!firstLoad.current) return;
+        firstLoad.current = false;
+
+        if (robot.type === RobotType.NeatoGen4) getPromotedFloorplan().then((promoted) => promoted && setPersistentMap(promoted.id))
+        else {
+            const enabledMaps = (persistentMaps as Neato.Gen3.PersistentMap[]).filter(f => f.enabled)
+            if (enabledMaps.length === 1) setPersistentMap(enabledMaps[0].id);
+        }
+    }, [persistentMaps])
 
     const extraDraw = useCallback((ctx, canvas, currentZoom, currentOffset, mapSize) => {
         const showBoundaries = mode === 'boundary-edit'
@@ -357,6 +369,12 @@ export default () => {
                                         })} />
                                 </div>
                             )}
+
+                        {robot.type === RobotType.NeatoGen3 && (
+                            <div style={{ padding: '1rem 0' }}>
+                                <Button text={t('common.delete')} style='fail' onClick={() => Http.deleteFloorplan(robot.serial, persistentMap).then(updatePersistentMaps).then(() => setMode('maps'))} />
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -575,7 +593,7 @@ interface PromoteDemoteBtnProps {
 const PromoteDemoteBtn = ({ robot, map, onSuccess }: PromoteDemoteBtnProps) => {
     const { t } = useTranslation()
     return <Button text={map.promoted ? t('map.demote') : t('map.promote')} onClick={() => {
-        if (map.promoted) Http.demoteFloorplan(robot.serial, map.id).finally(() => onSuccess())
+        if (map.promoted) Http.deleteFloorplan(robot.serial, map.id).finally(() => onSuccess())
         else Http.promoteFloorplan(robot.serial, map.id).finally(() => onSuccess());
     }} style={map.promoted ? 'fail' : 'success'} />
 }

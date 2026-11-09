@@ -2,28 +2,28 @@
   "name": "Vacuula",
   "short_name": "Vacuula",
   "description": "Local control for Neato robot vacuums",
-  "id": "/web",
-  "start_url": "/web",
-  "scope": "/web",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0f1113",
   "theme_color": "#0f1113",
   "icons": [
     {
-      "src": "/web/icons/icon-vacuula-192.png",
+      "src": "icons/icon-vacuula-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/web/icons/icon-vacuula-512.png",
+      "src": "icons/icon-vacuula-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/web/icons/icon-vacuula-maskable-512.png",
+      "src": "icons/icon-vacuula-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"

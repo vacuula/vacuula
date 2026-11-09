@@ -161,15 +161,17 @@ export default () => {
                         value={scheduleForm.startTime}
                         onChange={(startTime) => updateForm(SetScheduleForm, { startTime })} />
 
-                    <Input
-                        type="select"
-                        label={t('schedule.selectZones')}
-                        extraInfo={t('schedule.selectZonesHelp')}
-                        options={zoneOptions}
-                        allowDeselect
-                        value={scheduleForm.boundaryId}
-                        onChange={(boundaryId) => boundaryId && updateForm(SetScheduleForm, { boundaryId })}
-                    />
+                    {zoneOptions.length > 0 && (
+                        <Input
+                            type="select"
+                            label={t('schedule.selectZones')}
+                            extraInfo={t('schedule.selectZonesHelp')}
+                            options={zoneOptions}
+                            allowDeselect
+                            value={scheduleForm.boundaryId}
+                            onChange={(boundaryId) => updateForm(SetScheduleForm, { boundaryId })}
+                        />
+                    )}
 
                     <Button text={t('common.save')} style='success' onClick={() => {
                         setDrawerOpen(false)
