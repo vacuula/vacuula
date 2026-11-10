@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import styles from './schedule.module.scss'
 import Drawer from '../../components/drawer/drawer'
 
-import type { GetSchedule, ScheduleEvent } from './types'
+import type { ScheduleEvent } from './types'
 import { FaTrash } from 'react-icons/fa'
 import Input from '../../components/input/input'
 import Button from '../../components/button/button'
@@ -17,23 +17,32 @@ import { dayKey } from '../../i18n/days'
 import { usePersistentMaps } from '../../loaders/resources'
 import type { UseState } from '../../components/map/types'
 import { fetchAllGen3Boundaries, getCachedZones } from '../../loaders/gen3Boundaries'
+import { createScheduleOperations } from './gen3ScheduleOperations'
 
-export default () => {
+export default function Schedule() {
+    const { robot } = useRobot()
+    return robot.type === RobotType.NeatoGen4 ? <Scheudle_gen4 /> : <Gen3Schedule key={robot.serial} />
+}
+
+function Gen3Schedule() {
     const { t } = useTranslation()
-
     const { robot, serverInfo } = useRobot()
 
-    if (robot?.type === RobotType.NeatoGen4) return <Scheudle_gen4 />
-
-
-    const [schedule, setSchedule] = useState<GetSchedule>()
     const [drawerOpen, setDrawerOpen] = useState(false)
+    const operations = useMemo(() => createScheduleOperations({
+        read: () => GEN3_COMMANDS.getSchedule(robot.serial),
+        write: events => GEN3_COMMANDS.setSchedule(robot.serial, events).then(response => ({
+            data: response.data as { result: string },
+        })),
+        toggle: enabled => (enabled ? GEN3_COMMANDS.enableSchedule : GEN3_COMMANDS.disableSchedule)(robot.serial),
+    }), [robot.serial])
+    const { schedule, busy, unconfirmed, error } = useSyncExternalStore(operations.subscribe, operations.getSnapshot)
+    const locked = busy || unconfirmed
 
-    const offset = serverInfo.utc_offset_minutes ?? 0
     const { data: persistentMaps } = usePersistentMaps()
 
     useEffect(() => {
-        if (robot.type !== RobotType.NeatoGen3 || !persistentMaps) return
+        if (!persistentMaps) return
         fetchAllGen3Boundaries(robot.serial, persistentMaps)
     }, [robot.serial, persistentMaps])
 
@@ -48,21 +57,18 @@ export default () => {
         mode: 0
     })
 
-    const getSchedule = () => {
-        GEN3_COMMANDS.getSchedule(robot.serial).then(res => {
-            setSchedule(res.data.data)
-        })
-    }
-
     useEffect(() => {
-        if (!robot) return;
-        getSchedule();
-    }, [robot])
+        void operations.load()
+        return operations.cancel
+    }, [operations])
 
     const removeEvent = (index: number) => {
         if (!schedule) return;
-        schedule.events.splice(index, 1)
-        GEN3_COMMANDS.setSchedule(robot.serial, schedule.events).finally(() => getSchedule())
+        void operations.save(schedule.events.filter((_, i) => i !== index))
+    }
+
+    const saveEvents = async (events: ScheduleEvent[]) => {
+        if (await operations.save(events)) setDrawerOpen(false)
     }
 
     const updateForm = <T extends object>(update: UseState<T>, patch: Partial<T>) => {
@@ -72,12 +78,24 @@ export default () => {
         }))
     }
 
-    if (!schedule) return
+    const feedback = <div aria-live="polite">
+        {busy && <p role="status">{t(schedule ? 'common.sendingCommand' : 'common.loading')}</p>}
+        {error && <div>
+            <p role="alert">{t(`schedule.operation${error === 'load' ? 'LoadError' : error === 'rejected' ? 'Rejected' : 'Unconfirmed'}`)}</p>
+            {error !== 'rejected' && <Button text={t('schedule.retrySchedule')} style="secondary" disabled={busy}
+                onClick={() => { void operations.retry().then(saved => { if (saved) setDrawerOpen(false) }) }} />}
+        </div>}
+    </div>
 
     return (
         <div className={styles.container}>
-
-            <div className={styles.featureList}>
+            {!drawerOpen && feedback}
+            {schedule && <>
+            <fieldset className={styles.featureList} disabled={locked || drawerOpen}
+                style={{ border: 0, margin: 0, minWidth: 0 }}
+                onClickCapture={event => {
+                    if (locked || drawerOpen) { event.preventDefault(); event.stopPropagation() }
+                }}>
                 <div className={`${styles.item} ${styles.staticItem}`}>
                     <div className={styles.info}>
                         <span>{t('schedule.schedule')}</span>
@@ -86,9 +104,7 @@ export default () => {
                         )}
                     </div>
                     <Input type="switch" skipSection={true} value={schedule.enabled} onChange={() => {
-                        let cmd = GEN3_COMMANDS.enableSchedule;
-                        if (schedule.enabled) cmd = GEN3_COMMANDS.disableSchedule;
-                        cmd(robot.serial).then(() => getSchedule());
+                        void operations.toggle(!schedule.enabled)
                     }} />
                 </div>
 
@@ -118,16 +134,17 @@ export default () => {
                 {schedule.events?.length === 0 && (
                     <span style={{ textAlign: 'center' }}>{t('schedule.noSchedules')}</span>
                 )}
-            </div>
+            </fieldset>
             <Drawer
                 open={drawerOpen}
+                disabled={locked}
                 handle={false}
                 onOpenChange={setDrawerOpen}
                 openHeightPercent={70}
                 title={t('schedule.addEvent')}
             >
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {feedback}
+                <fieldset disabled={locked} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', border: 0, margin: 0, padding: 0, minWidth: 0 }}>
                     <Input
                         type="select"
                         label={t('common.day')}
@@ -174,12 +191,12 @@ export default () => {
                     )}
 
                     <Button text={t('common.save')} style='success' onClick={() => {
-                        setDrawerOpen(false)
-                        GEN3_COMMANDS.setSchedule(robot.serial, [scheduleForm, ...schedule.events]).finally(() => getSchedule())
+                        void saveEvents([scheduleForm, ...schedule.events])
                     }} />
-                </div>
+                </fieldset>
 
             </Drawer>
+            </>}
 
         </div>
     )
