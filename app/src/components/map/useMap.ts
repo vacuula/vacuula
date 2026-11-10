@@ -41,7 +41,7 @@ export function useMap({
     redrawKey,
     backgroundToken
 }: UseMapOptions) {
-    const canvasRef = useRef<HTMLCanvasElement | undefined>(undefined)
+    const canvasRef = useRef<HTMLCanvasElement | null>(null)
     const cellsRef = useRef<number[] | null>(null)
     const runCellsRef = useRef<number[] | null>(null)
     const runIgnoreSetRef = useRef<Set<number>>(new Set())
@@ -84,7 +84,7 @@ export function useMap({
         userInteractedRef.current = true
         handleTouchStart(e)
     }, [handleTouchStart])
-    const onWheel = useCallback((e: React.WheelEvent) => {
+    const onWheel = useCallback((e: React.WheelEvent<HTMLCanvasElement>) => {
         userInteractedRef.current = true
         handleWheel(e)
     }, [handleWheel])

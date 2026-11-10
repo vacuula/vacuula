@@ -1,8 +1,8 @@
-import { createContext, useEffect, useRef, useState } from 'react'
+import { createContext, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { BASE_PATH, Http, type LoadingState, type ServerInfo } from '../http'
 import { GEN3_COMMANDS } from '../http/gen3'
-import type { UseState } from '../pages/map/types'
+import type { UseState } from '../components/map/types'
 import { Neato, RobotType, type QuickRobotInfo, type Robot } from '../types'
 import { GEN4_COMMANDS } from '../http/gen4'
 import { OrbitalServices, type AnyEvent } from '../types/neato/gen4'
@@ -19,10 +19,6 @@ interface AppContextType {
     selectRobot: (serial: string) => void,
     updateRobotName: (name: string) => Promise<void>
     lastHeartbeat?: number,
-
-    persistentMaps?: (Neato.Gen3.PersistentMap[] | Neato.Gen4.Floorplan[])
-
-    setPersistentMaps: UseState<(Neato.Gen3.PersistentMap[] | Neato.Gen4.Floorplan[]) | undefined>
 
     cleanings?: Neato.Gen4.Cleaning[] | Neato.Gen3.CleaningRun[]
     setCleanings: UseState<Neato.Gen4.Cleaning[] | Neato.Gen3.CleaningRun[] | undefined>
@@ -49,8 +45,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const [robot, setRobot] = useState<Robot>()
     const [robots, setRobots] = useState<QuickRobotInfo>()
     const [lastHeartbeat, setLastHeartbeat] = useState<number | undefined>()
-    // const [persistentMaps, setPersistentMaps] = useState<PersistentMap[]>()
-    const [cleanings, setCleanings] = useState<Neato.Gen4.Cleaning[] | Neato.Gen3.Cleaning[]>()
+    const [cleanings, setCleanings] = useState<Neato.Gen4.Cleaning[] | Neato.Gen3.CleaningRun[]>()
     const { isDark: isDarkMode, setTheme } = useTheme()
     const setIsDarkMode = (dark: boolean) => setTheme(dark ? 'dark' : 'light')
     const [isLoading, setIsLoading] = useState(false)
@@ -198,7 +193,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             if (!robots) return;
             if (robot.type === RobotType.NeatoGen3) {
                 GEN3_COMMANDS.getRobotState(robot.serial).then((res) => {
-                    setRobot(cur => cur ? {
+                    setRobot(cur => cur?.type === RobotType.NeatoGen3 && cur.serial === robot.serial ? {
                         ...cur,
                         type: RobotType.NeatoGen3,
                         availableCommands: res.data.availableCommands,
@@ -225,40 +220,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
             }
         }
 
-        interface VacuulaRobotEvent {
-            serial: string,
-            ts: number,
-            type: RobotType,
-            data: AnyEvent
-        }
+        type VacuulaRobotEvent = { serial: string, ts: number } & (
+            { type: RobotType.NeatoGen4, data: AnyEvent }
+            // Gen3's event handler omits the outer type field.
+            | { type?: RobotType.NeatoGen3, data: Neato.Gen3.StateEvent }
+        )
 
         events.onmessage = (event) => {
             setLastHeartbeat(Date.now());
             const wrapper: VacuulaRobotEvent = JSON.parse(event.data);
+            if (wrapper.serial !== robot.serial) return
 
             if (wrapper.type === RobotType.NeatoGen4) {
-                type EventByService = {
-                    [E in AnyEvent as E["to"]["service"]]: E
-                };
-
-                const handlers: {
-                    [K in keyof EventByService]?: (body: EventByService[K]["body"]) => void
-                } = {
-                    [OrbitalServices.PEER_STATE]: (body) => {
-                        setRobot(cur => cur?.type === RobotType.NeatoGen4 ? {
-                            ...cur,
-                            availableCommands: body.available_commands,
-                            details: body.details,
-                            errors: body.errors != null ? body.errors : undefined,
-                            state: body.state,
-                            action: body.action,
-                        } : cur)
-                    },
-                    // [OrbitalServices.ROBOTS_ERROR_CODES]: (body) => console.log('new errors', body),
-                };
-
-                const handler = handlers[wrapper.data.to.service];
-                handler?.(wrapper.data.body as any); // !TODO any allowed in this case, maybe fix later
+                const body = wrapper.data.body
+                if (wrapper.data.to.service === OrbitalServices.PEER_STATE && 'available_commands' in body) {
+                    setRobot(cur => cur?.type === RobotType.NeatoGen4 && cur.serial === wrapper.serial ? {
+                        ...cur,
+                        availableCommands: body.available_commands,
+                        details: body.details,
+                        errors: body.errors != null ? body.errors : undefined,
+                        state: body.state,
+                        action: body.action,
+                    } : cur)
+                }
                 return;
             }
 
@@ -266,7 +250,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 return;
             }
 
-            setRobot(cur => cur ? {
+            setRobot(cur => cur?.type === RobotType.NeatoGen3 && cur.serial === wrapper.serial ? {
                 ...cur,
                 availableCommands: wrapper.data.data.availableCommands,
                 details: wrapper.data.data.details,
@@ -310,8 +294,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         selectRobot,
         lastHeartbeat,
 
-        // persistentMaps,
-        // setPersistentMaps,
         cleanings,
         setCleanings,
 

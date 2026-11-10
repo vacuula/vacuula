@@ -45,6 +45,7 @@ export interface Cleaning {
 }
 
 export interface Run {
+    autonomous_dock?: boolean
     timing: Timing,
     track_uuid: string // ?
     state: RunStates

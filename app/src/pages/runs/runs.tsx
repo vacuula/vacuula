@@ -1,18 +1,12 @@
 import styles from './runs.module.scss'
-import { useRef, useEffect, useState, useCallback } from 'react'
+import { useRef, useEffect, useState } from 'react'
 import Drawer from '../../components/drawer/drawer'
 
-import type { GetSchedule, ScheduleEvent } from './types'
-import { FaPlus, FaTimes, FaUndo, FaPen, FaCheckCircle, FaCircle, FaTrash } from 'react-icons/fa'
-import Input from '../../components/input/input'
-import { PiBoundingBox } from "react-icons/pi";
-import { biEnum } from '../../types/.helpers'
+import { Http } from '../../http'
 import Button from '../../components/button/button'
 import { GEN3_COMMANDS } from '../../http/gen3'
-import { Http } from '../../http'
 import { useApp } from '../../context/useApp'
-import type { UseState } from '../map/types'
-import { Neato, RobotType } from '../../types'
+import { Neato } from '../../types'
 import { IoMdTime, IoMdCheckmarkCircle, IoMdCloseCircleOutline } from "react-icons/io";
 import { SlEnergy } from "react-icons/sl";
 import Map from '../../components/map/map'
