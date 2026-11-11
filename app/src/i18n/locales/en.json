@@ -124,6 +124,8 @@
         "addOneMore": "Add one more schedule",
         "noSchedules": "You don't have any schedules yet, why not add one?",
         "addEvent": "Add event",
+        "selectSingleZone": "Clean zone",
+        "selectSingleZoneHelp": "Optional: select one zone to clean. If none is selected, the entire map will be cleaned.",
         "gen3Summary": "Runs on: {{day}} | Mode: {{mode}}",
         "gen3SummaryZone": "Zone: {{zone}}",
         "gen4Summary": "Runs {{when}} | {{mode}} mode | {{navigation}} navigation",
