@@ -12,32 +12,32 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "axios": "^1.16.1",
-    "i18next": "^26.4.2",
-    "i18next-browser-languagedetector": "^8.2.1",
-    "react": "^19.2.6",
+    "axios": "^1.21.0",
+    "i18next": "^27.0.1",
+    "i18next-browser-languagedetector": "^8.3.0",
+    "react": "^19.3.1",
     "react-colorful": "^5.8.1",
-    "react-dom": "^19.2.6",
-    "react-i18next": "^17.0.14",
-    "react-icons": "^5.6.0",
-    "react-router": "^7.15.0",
+    "react-dom": "^19.3.1",
+    "react-i18next": "^18.0.0",
+    "react-icons": "^5.7.0",
+    "react-router": "^8.5.1",
     "react-timeago": "^8.3.0",
-    "sass": "^1.99.0",
-    "uuid": "^14.0.2"
+    "sass": "^1.108.1",
+    "uuid": "^14.0.3"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@types/node": "^24.12.3",
-    "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.1",
-    "eslint": "^10.3.0",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.2.1",
+    "eslint": "^10.14.0",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "eslint-plugin-react-refresh": "^0.5.2",
-    "globals": "^17.6.0",
-    "sharp": "^0.35.4",
-    "typescript": "~6.0.2",
-    "typescript-eslint": "^8.59.2",
-    "vite": "^8.0.12"
+    "eslint-plugin-react-refresh": "^0.5.7",
+    "globals": "^17.14.0",
+    "sharp": "^0.35.5",
+    "typescript": "~7.0.2",
+    "typescript-eslint": "^8.72.1",
+    "vite": "^8.3.6"
   }
 }
