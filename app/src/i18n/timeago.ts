@@ -3,6 +3,8 @@ import type { Formatter } from 'react-timeago'
 import enStrings from 'react-timeago/language-strings/en'
 import nlStrings from 'react-timeago/language-strings/nl'
 import ptStrings from 'react-timeago/language-strings/pt'
+import frStrings from 'react-timeago/language-strings/fr'
+import deStrings from 'react-timeago/language-strings/de'
 import { useTranslation } from 'react-i18next'
 import { DEFAULT_LANGUAGE } from './languages'
 
@@ -11,6 +13,8 @@ const FORMATTERS: Record<string, Formatter> = {
     en: buildFormatter(enStrings),
     nl: buildFormatter(nlStrings),
     pt: buildFormatter(ptStrings),
+    fr: buildFormatter(frStrings),
+    de: buildFormatter(deStrings),
 }
 
 export function useTimeAgoFormatter(): Formatter {

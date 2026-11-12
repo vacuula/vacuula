@@ -48,7 +48,8 @@
 }
 
 .drawerContent {
-    padding: 1.6rem;
+    // the drawer is anchored to the bottom edge of the app frame, i.e. under the home indicator
+    padding: 1.6rem 1.6rem calc(1.6rem + env(safe-area-inset-bottom));
     color: $text-primary;
     flex: 1;
     display: flex;
