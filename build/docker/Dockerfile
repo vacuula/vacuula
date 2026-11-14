@@ -56,4 +56,4 @@ COPY server/migrations ./migrations
 # Built frontend
 COPY --from=frontend /app/dist ./web
 
-CMD ["sh", "-c", "alembic upgrade head && vacuula-server"]
+CMD ["sh", "-c", "alembic upgrade head && exec vacuula-server"]
