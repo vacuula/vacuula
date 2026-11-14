@@ -14,6 +14,7 @@ from vacuula_server.models.run import Gen4__Run
 from vacuula_server.state import PendingRequest, put_drop_oldest, robot_connections
 from vacuula_server.handlers.events import notify_robots_changed
 from vacuula_server.generation import Generation
+from vacuula_server.notifications import robots_notify
 
 from vacuula_server.state import pending_requests, client_connections
 from datetime import datetime, timezone
@@ -266,6 +267,7 @@ def maps_create(rc: RobotConn, data: dict):
 # TODO: implement all services robot uses
 request_map = {
     "maps.create": maps_create,
+    "robots.notify": robots_notify,
 }
 
 
