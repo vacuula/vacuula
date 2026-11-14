@@ -151,6 +151,7 @@ def robot_send_request(rc: RobotConn, body: dict, slot=None):
     }
 
     if slot is not None:
+        slot.conn = rc
         pending_requests[request_id] = slot
     try:
         send_json(rc.conn.socket, msg)

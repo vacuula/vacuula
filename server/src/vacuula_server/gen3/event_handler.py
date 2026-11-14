@@ -41,8 +41,9 @@ def robot_data(serial: str, data: bytes):
 
     logger.debug("robot_data: serial=%s eventId=%s reqId=%s data=%s", serial, eventId, reqId, data)
 
-    if reqId in pending_requests:
-        slot = pending_requests.get(reqId)
+    req_key = str(reqId) if reqId is not None else None
+    if req_key and req_key in pending_requests:
+        slot = pending_requests.get(req_key)
         result = decoded.get("result")
         if slot is not None:
             slot.fulfill(data, 200 if result == "ok" else 400)
@@ -58,8 +59,13 @@ def robot_data(serial: str, data: bytes):
             frame = f"data: {msg}\n\n".encode()
             for client in clients:
                 put_drop_oldest(client["queue"], frame)
-
-
+    elif reqId:
+        logger.debug(
+            "Received late response for expired reqId %s from %s: %s",
+            reqId,
+            serial,
+            decoded.get("result"),
+        )
     else:
         logger.error("no eventId or reqId in data from %s", serial)
 
