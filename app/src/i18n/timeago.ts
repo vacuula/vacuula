@@ -1,6 +1,7 @@
 import buildFormatter from 'react-timeago/formatters/buildFormatter'
 import type { Formatter } from 'react-timeago'
 import enStrings from 'react-timeago/language-strings/en'
+import itStrings from 'react-timeago/language-strings/it'
 import ptStrings from 'react-timeago/language-strings/pt'
 import frStrings from 'react-timeago/language-strings/fr'
 import deStrings from 'react-timeago/language-strings/de'
@@ -10,6 +11,7 @@ import { DEFAULT_LANGUAGE } from './languages'
 // Relative-time formatters ("3 minutes ago") for <TimeAgo>, one per app language.
 const FORMATTERS: Record<string, Formatter> = {
     en: buildFormatter(enStrings),
+    it: buildFormatter(itStrings),
     pt: buildFormatter(ptStrings),
     fr: buildFormatter(frStrings),
     de: buildFormatter(deStrings),
