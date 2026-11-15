@@ -143,7 +143,18 @@ function getSchedule(serial: string) {
 }
 
 function setSchedule(serial: string, events: ScheduleEvent[]) {
-    return Http.sendCmd(serial, { cmd: "setSchedule", params: { events } })
+    // getSchedule returns a display boundary; setSchedule needs its ID instead.
+    const writableEvents = events.map(event => {
+        const boundaryId = event.boundaryId ?? event.boundary?.id
+        return {
+            mode: event.mode,
+            day: event.day,
+            startTime: event.startTime,
+            ...(boundaryId ? { boundaryId } : {}),
+            ...(event.mapId ? { mapId: event.mapId } : {}),
+        }
+    })
+    return Http.sendCmd(serial, { cmd: "setSchedule", params: { events: writableEvents } })
 }
 
 function enableSchedule(serial: string) {
