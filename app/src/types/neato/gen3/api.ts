@@ -2,7 +2,7 @@ import type { NoGoLine, Zone } from "../../../components/map/types";
 import type { GetSchedule } from "../../../pages/schedule/types";
 import { biEnum } from "../../.helpers";
 import type { Preferences } from "./settings";
-import type { GetGeneralInfo } from "./state";
+import type { GetGeneralInfo, GetRobotStateResponse } from "./state";
 
 
 export const RobotApiResult = biEnum({
@@ -28,6 +28,12 @@ export type GetMapBoundariesResponse = RobotBaseResponse<{
 export type GetScheduleResponse = RobotBaseResponse<GetSchedule>;
 export type GetPreferencesResponse = RobotBaseResponse<Preferences>;
 export type GetGeneralInfoResponse = RobotBaseResponse<GetGeneralInfo>;
+
+export interface StateEvent {
+    type?: string
+    eventId?: string
+    data: Pick<GetRobotStateResponse, 'availableCommands' | 'details' | 'alert' | 'error' | 'state' | 'action'>
+}
 
 
 

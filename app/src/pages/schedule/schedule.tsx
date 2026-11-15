@@ -29,7 +29,6 @@ export default () => {
     const [schedule, setSchedule] = useState<GetSchedule>()
     const [drawerOpen, setDrawerOpen] = useState(false)
 
-    const offset = serverInfo.utc_offset_minutes ?? 0
     const { data: persistentMaps } = usePersistentMaps()
 
     useEffect(() => {
@@ -42,7 +41,7 @@ export default () => {
         .flatMap(m => getCachedZones(robot.serial, m.id).map(z => ({ value: z.id, label: `${m.name} - ${z.name}` })))
 
 
-    const [scheduleForm, SetScheduleForm] = useState<ScheduleEvent>({
+    const [scheduleForm, SetScheduleForm] = useState<Omit<ScheduleEvent, 'day'> & { day: RobotDay | -1 }>({
         startTime: '',
         day: -1,
         mode: 0
@@ -174,8 +173,10 @@ export default () => {
                     )}
 
                     <Button text={t('common.save')} style='success' onClick={() => {
+                        const day = scheduleForm.day
+                        if (day === -1) return
                         setDrawerOpen(false)
-                        GEN3_COMMANDS.setSchedule(robot.serial, [scheduleForm, ...schedule.events]).finally(() => getSchedule())
+                        GEN3_COMMANDS.setSchedule(robot.serial, [{ ...scheduleForm, day }, ...schedule.events]).finally(() => getSchedule())
                     }} />
                 </div>
 

@@ -15,9 +15,8 @@ import { usePersistentMaps } from '../../loaders/resources'
 import type { Floorplan } from '../../types/neato/gen4'
 import { v4 as uuidv4 } from 'uuid';
 import { useTranslation } from 'react-i18next'
-import i18n from '../../i18n'
 import { useGetPromotedFloorplan } from '../../utils/floormaps'
-import type { NoGoLine, Point, UseState, Zone } from '../../components/map/types'
+import type { NoGoLine, Point, SetZone, UseState, Zone } from '../../components/map/types'
 import { drawZones, drawNoGoLines, drawBase, drawCrosshair, drawInProgressPolyline, onDockImageReady } from '../../components/map/drawingFunctions'
 import { calcRelevancy, upsertPreserveOrder } from '../../components/map/utils'
 import { normalizeHex, pickUnusedPreset, withAlpha } from '../../components/map/color'
@@ -25,6 +24,7 @@ import ColorPicker from '../../components/colorPicker/ColorPicker'
 import { isDocked } from '../../components/topbar/robotInfo'
 import { fetchGen3MapBoundaries } from '../../loaders/gen3Boundaries'
 import { getGen3CleaningMode, getGen3NavigationMode, getGen4CleaningMode, getGen4NavigationMode } from '../../utils/modes'
+import type { ExtraDrawFn } from '../../components/map/useMap'
 
 
 export default () => {
@@ -77,13 +77,13 @@ export default () => {
         }
     }, [persistentMaps])
 
-    const extraDraw = useCallback((ctx, canvas, currentZoom, currentOffset, mapSize) => {
+    const extraDraw = useCallback<ExtraDrawFn>((ctx, canvas, currentZoom, currentOffset, mapSize) => {
         const showBoundaries = mode === 'boundary-edit'
             ? boundaries.filter(b => b.id !== activeBoundaryId)
             : boundaries
 
         drawZones(ctx, showBoundaries.filter(b => b.type === 'polygon'), currentZoom, currentOffset, mapSize)
-        drawNoGoLines(ctx, showBoundaries.filter(b => b.type === 'polyline'), currentZoom, currentOffset, mapSize)
+        drawNoGoLines(ctx, showBoundaries.filter((b): b is NoGoLine => b.type === 'polyline'), currentZoom, currentOffset, mapSize)
 
         // TODO: rework this base drawing, very hacky for quick release...
         const map = persistentMaps?.find(p => p.id === persistentMap)
@@ -157,13 +157,13 @@ export default () => {
             return
         }
 
-        const updatedBoundaries = boundaries.map(boundary =>
+        const updatedBoundaries = boundaries.map((boundary): NoGoLine | SetZone =>
             boundary.type === 'polygon'
                 ? {
                     ...boundary,
                     relevancy: calcRelevancy(boundary.vertices)
                 }
-                : boundary
+                : { ...boundary, type: 'polyline' }
         );
         GEN3_COMMANDS.setMapBoundaries(robot.serial, persistentMap, updatedBoundaries).catch(() => {
             getMapBoundaries();
