@@ -116,6 +116,8 @@
         "addOneMore": "Adicionar mais um agendamento",
         "noSchedules": "Ainda não tem agendamentos, porque não adicionar um?",
         "addEvent": "Adicionar evento",
+        "selectSingleZone": "Zona de limpeza",
+        "selectSingleZoneHelp": "Opcional: selecione uma zona para limpar. Se nenhuma for selecionada, todo o mapa será limpo.",
         "gen3Summary": "Dia: {{day}} | Modo: {{mode}}",
         "gen3SummaryZone": "Zona: {{zone}}",
         "gen4Summary": "Agendado {{when}} | Modo {{mode}} | Navegação {{navigation}}",

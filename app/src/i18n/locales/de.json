@@ -122,6 +122,8 @@
         "addOneMore": "Einen neuen Zeitplan hinzufügen",
         "noSchedules": "Du hast keine Zeitpläne, warum erstellst du nicht einen?",
         "addEvent": "Ereignis zufügen",
+        "selectSingleZone": "Reinigungszone",
+        "selectSingleZoneHelp": "Optional: Wähle eine Zone zum Reinigen aus. Wenn keine Zone ausgewählt wird, wird die gesamte Karte gereinigt.",
         "gen3Summary": "Startet am: {{day}} | Modus: {{mode}}",
         "gen3SummaryZone": "Zone: {{zone}}",
         "gen4Summary": "Gestartet {{when}} | {{mode}} Modus | {{navigation}} Navigation",
