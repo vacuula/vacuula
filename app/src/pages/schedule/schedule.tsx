@@ -42,11 +42,13 @@ export default () => {
         .flatMap(m => getCachedZones(robot.serial, m.id).map(z => ({ value: z.id, label: `${m.name} - ${z.name}` })))
 
 
-    const [scheduleForm, SetScheduleForm] = useState<ScheduleEvent>({
+    const [scheduleForm, SetScheduleForm] = useState<Omit<ScheduleEvent, 'day'> & { days: RobotDay[] }>({
         startTime: '',
-        day: -1,
-        mode: 0
+        days: [],
+        mode: CleaningMode.NORMAL
     })
+
+    const canSave = scheduleForm.days.length > 0 && /^([01]\d|2[0-3]):[0-5]\d$/.test(scheduleForm.startTime)
 
     const getSchedule = () => {
         GEN3_COMMANDS.getSchedule(robot.serial).then(res => {
@@ -94,7 +96,10 @@ export default () => {
 
                 <hr style={{ width: '90%' }} />
 
-                <div className={`${styles.item} ${styles.actionItem}`} onClick={() => setDrawerOpen(true)}>
+                <div className={`${styles.item} ${styles.actionItem}`} onClick={() => {
+                    SetScheduleForm({ startTime: '', days: [], mode: CleaningMode.NORMAL })
+                    setDrawerOpen(true)
+                }}>
                     <div className={styles.info}>
                         <span>{t('schedule.newSchedule')}</span>
                         <span className={styles.type}>{t('schedule.addOneMore')}</span>
@@ -124,13 +129,14 @@ export default () => {
                 handle={false}
                 onOpenChange={setDrawerOpen}
                 openHeightPercent={70}
-                title={t('schedule.addEvent')}
+                title={t('schedule.newSchedule')}
             >
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     <Input
-                        type="select"
-                        label={t('common.day')}
+                        type="multi-select"
+                        label={t('common.days')}
+                        extraInfo={t('schedule.selectDaysHelp')}
                         options={[
                             { value: RobotDay.MONDAY, label: t('days.monday') },
                             { value: RobotDay.TUESDAY, label: t('days.tuesday') },
@@ -140,8 +146,8 @@ export default () => {
                             { value: RobotDay.SATURDAY, label: t('days.saturday') },
                             { value: RobotDay.SUNDAY, label: t('days.sunday') },
                         ]}
-                        value={scheduleForm.day}
-                        onChange={(day) => updateForm(SetScheduleForm, { day })}
+                        value={scheduleForm.days}
+                        onChange={(days) => updateForm(SetScheduleForm, { days })}
                     />
 
                     <Input
@@ -173,9 +179,12 @@ export default () => {
                         />
                     )}
 
-                    <Button text={t('common.save')} style='success' onClick={() => {
+                    <Button text={t('common.save')} style='success' disabled={!canSave} onClick={() => {
+                        if (!canSave) return
+                        const { days, ...event } = scheduleForm
+                        const events = days.map(day => ({ ...event, day }))
                         setDrawerOpen(false)
-                        GEN3_COMMANDS.setSchedule(robot.serial, [scheduleForm, ...schedule.events]).finally(() => getSchedule())
+                        GEN3_COMMANDS.setSchedule(robot.serial, [...events, ...schedule.events]).finally(() => getSchedule())
                     }} />
                 </div>
 
