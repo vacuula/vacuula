@@ -236,8 +236,14 @@ export default () => {
         setActiveBoundaryId(id)
     }
 
-    const openEdit = (id: string) => {
+    // What a new boundary will be: a no-go line never offers to close into a zone.
+    const [newKind, setNewKind] = useState<'zone' | 'line'>('zone')
+    const editedBoundary = boundaries.find(b => b.id === activeBoundaryId)
+    const lineOnly = editedBoundary ? editedBoundary.type === 'polyline' : newKind === 'line'
+
+    const openEdit = (id: string, kind: 'zone' | 'line' = 'zone') => {
         if (mode !== 'boundaries' && mode !== 'boundary-info') return;
+        setNewKind(kind)
         SetReturnFromEditMode(mode)
         setMode('boundary-edit')
         setActiveBoundaryId(id)
@@ -307,6 +313,7 @@ export default () => {
                     closedAsPolygon={closedAsPolygon}
                     setClosedAsPolygon={setClosedAsPolygon}
                     setDrawerOpen={setDrawerOpen}
+                    allowPolygon={!lineOnly}
                 />
             ) : (
                 <canvas className={styles.canvas} />
@@ -466,7 +473,7 @@ export default () => {
                             )}
 
                             {editable && (
-                                <SectionLabel right={<button type="button" className={styles.addButton} onClick={() => openEdit(uuidv4())}>{t('ui.addNoGo')}</button>}>
+                                <SectionLabel right={<button type="button" className={styles.addButton} onClick={() => openEdit(uuidv4(), 'line')}>{t('ui.addNoGo')}</button>}>
                                     {t('ui.otherBoundaries')}
                                 </SectionLabel>
                             )}

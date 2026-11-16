@@ -22,6 +22,8 @@ interface MapCanvasProps {
     closedAsPolygon: boolean
     setClosedAsPolygon: UseState<boolean>
     setDrawerOpen: (open: boolean) => void
+    /** false while drawing a no-go line: the "close as polygon" button is hidden */
+    allowPolygon?: boolean
 }
 
 // Owns everything that genuinely can't exist without a selected map: the hook, the
@@ -37,7 +39,8 @@ export default function MapCanvas({
     setCurrentLinePoints,
     closedAsPolygon,
     setClosedAsPolygon,
-    setDrawerOpen
+    setDrawerOpen,
+    allowPolygon = true
 }: MapCanvasProps) {
     // TODO: decide on how exactly i want this to work, for now just show the button if there is at least 3 points.
     const [showCloseAsPolygon, setShowCloseAsPolygon] = useState(false)
@@ -112,9 +115,11 @@ export default function MapCanvas({
                     <div onClick={addPointAtCrosshair} className={`${styles.add} ${closedAsPolygon ? styles.disabled : ''}`}>
                         <FaPlus size={40} color="var(--text)" />
                     </div>
-                    <div onClick={closeAsPolygon} className={`${styles.closePolygon} ${((currentLinePoints.length > 2) && !closedAsPolygon) ? '' : styles.disabled}`}>
-                        <PiBoundingBox size={20} color="var(--text)" />
-                    </div>
+                    {allowPolygon && (
+                        <div onClick={closeAsPolygon} className={`${styles.closePolygon} ${((currentLinePoints.length > 2) && !closedAsPolygon) ? '' : styles.disabled}`}>
+                            <PiBoundingBox size={20} color="var(--text)" />
+                        </div>
+                    )}
                 </div>
             )}
         </>
