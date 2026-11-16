@@ -442,13 +442,16 @@ export default () => {
 
                             {editable && (
                                 <>
-                                    <SectionLabel badge={robot.type === RobotType.NeatoGen3 ? t('ui.multizone') : undefined}>{t('ui.zonesOrder')}</SectionLabel>
+                                    <SectionLabel badge={robot.type === RobotType.NeatoGen3 ? t('ui.multizone') : undefined}
+                                        right={<button type="button" className={styles.addButton} aria-label={t('map.addFeature')} onClick={() => openEdit(uuidv4())}>
+                                            {t('ui.addZone')}
+                                        </button>}>{t('ui.zonesOrder')}</SectionLabel>
                                     <div className={ui.grid2}>
                                         {cleaningZones.map(zone => {
                                             const order = selectedZones.indexOf(zone.id) + 1
                                             return <Chip key={zone.id} row label={zone.name} order={order || null} active={order > 0} onClick={() => toggleZone(zone.id)} />
                                         })}
-                                        <Chip row dashed label={t('ui.addZone')} onClick={() => openEdit(uuidv4())} />
+                                        {cleaningZones.length === 0 && <Chip row dashed label={t('ui.addZone')} onClick={() => openEdit(uuidv4())} />}
                                     </div>
                                 </>
                             )}
@@ -471,6 +474,8 @@ export default () => {
                                     </div>
                                 </>
                             )}
+
+                            {!isDocked(robot) && <div className={ui.info}>{t('ui.needsDock')}</div>}
 
                             <div className={styles.mapActions}>
                                 <button type="button" className={ui.ghost} onClick={() => selectedZones.length === 1 ? openInfo(selectedZones[0]) : setMode('map-edit')}>

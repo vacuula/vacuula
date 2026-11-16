@@ -1,6 +1,10 @@
 {
     "String-version": "0",
     "ui": {
+        "baseRefused": "O robô recusou voltar à base.",
+        "baseNotSeen": "O robô não sabe onde está a base (ainda não a viu): ponha-o na base à mão.",
+        "needsDock": "O robô tem de estar na base para limpar um mapa ou zonas.",
+        "goingHome": "A voltar à base…",
         "lastRun": "Última limpeza · {{time}}",
         "lastRunStats": "{{area}} · {{duration}} · {{battery}} % de bateria",
         "noRunYet": "Ainda sem limpezas",

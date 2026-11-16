@@ -269,6 +269,46 @@ export default function Home() {
     const nav = navOptions.find(o => o.value === navValue) ?? navOptions[0]
     const power = powerOptions.find(o => o.value === powerValue) ?? powerOptions[0]
 
+    // Base: pause first if the robot is cleaning, then wait until it actually
+    // allows going home before asking (gen3 rejects sendToBase while it is
+    // still switching state, and when it has not seen its base yet).
+    const [goingHome, setGoingHome] = useState(false)
+    const [notice, setNotice] = useState<string>()
+    useEffect(() => {
+        if (!notice) return
+        const timer = setTimeout(() => setNotice(undefined), 8000)
+        return () => clearTimeout(timer)
+    }, [notice])
+
+    const goHome = async () => {
+        setNotice(undefined)
+        if (robot.type !== RobotType.NeatoGen3) {
+            if (robot.availableCommands.pause) {
+                cmds.pauseCleaning(robot.serial).then(() => setTimeout(() => cmds.sendToBase(robot.serial), 3500))
+            } else cmds.sendToBase(robot.serial)
+            return
+        }
+        setGoingHome(true)
+        try {
+            if (robot.availableCommands.pause) await GEN3_COMMANDS.pauseCleaning(robot.serial)
+            let state: Neato.Gen3.GetRobotStateResponse | undefined
+            for (let i = 0; i < 30; i++) { // up to 15 s
+                state = (await Http.sendCmd<Neato.Gen3.GetRobotStateResponse>(robot.serial, { cmd: 'getRobotState' })).data
+                if (state?.availableCommands?.goToBase) {
+                    const sent = await GEN3_COMMANDS.sendToBase(robot.serial)
+                    if ((sent.data as { result?: string })?.result !== 'ok') setNotice(t('ui.baseRefused'))
+                    return
+                }
+                await new Promise(resolve => setTimeout(resolve, 500))
+            }
+            setNotice(state?.details?.dockHasBeenSeen === false ? t('ui.baseNotSeen') : t('ui.baseRefused'))
+        } catch {
+            setNotice(t('ui.baseRefused'))
+        } finally {
+            setGoingHome(false)
+        }
+    }
+
     const zoneCount = gen3__cleaningCategory === CleaningCategory.MAP ? selectedZones.length : 0
     const charge = robot.details?.charge ?? 0
 
@@ -403,17 +443,16 @@ export default function Home() {
                     </button>
                 )}
 
-                {/* if pause is possible, pause first then send to base */}
-                <button type="button" className={styles.side} disabled={baseDisabled} onClick={() => {
-                    if (robot.availableCommands.pause) {
-                        cmds.pauseCleaning(robot.serial).then(() => {
-                            setTimeout(() => cmds.sendToBase(robot.serial), 3500) // pulled my my arsle, more trial and error needed here! TODO: flag based actions, not in initial release however
-                        })
-                    } else cmds.sendToBase(robot.serial);
-                }}>
+                <button type="button" className={styles.side} disabled={baseDisabled || goingHome} onClick={goHome}>
                     <LuHouse size={20} aria-hidden="true" />{t('home.base')}
                 </button>
             </div>
+
+            {(notice || goingHome) && (
+                <div className={`${styles.notice} ${notice ? styles.noticeWarn : ''}`} role="status">
+                    {notice ?? t('ui.goingHome')}
+                </div>
+            )}
 
             {/* ── Mode sheet ── */}
             <Drawer open={categoryDrawerOpen} handle={false} onOpenChange={(open) => setCategoryDrawerOpen(open)} openHeightPercent={85} title={t('ui.cleanTitle')}>
@@ -516,7 +555,7 @@ export default function Home() {
                         {zoneCount ? t('ui.launchZones', { count: zoneCount }) : t('ui.launch')}
                     </button>
 
-                    {!isDocked(robot) && <div className={ui.info} style={{ textAlign: 'center' }}>{t('home.mapModeHint')}</div>}
+                    {!isDocked(robot) && <div className={ui.info} style={{ textAlign: 'center' }}>{t('home.mapModeHint')} {t('ui.needsDock')}</div>}
                 </div>
             </Drawer>
 
