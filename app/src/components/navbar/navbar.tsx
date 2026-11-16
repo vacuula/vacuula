@@ -1,6 +1,6 @@
 import styles from './navbar.module.scss'
 import { NavLink } from 'react-router';
-import { IoMapOutline, IoHomeOutline, IoCogOutline, IoBarChartOutline, IoCalendarOutline } from "react-icons/io5";
+import { LuChartColumn, LuMap, LuHouse, LuCalendarDays, LuSettings } from 'react-icons/lu';
 import { useTranslation } from 'react-i18next';
 
 export default () => {
@@ -9,19 +9,19 @@ export default () => {
     return (
         <div className={styles.navbar}>
             <Link to="/runs" label={t('nav.runs')}>
-                <IoBarChartOutline size={30} />
+                <LuChartColumn size={26} />
             </Link>
             <Link to="/map" label={t('nav.map')}>
-                <IoMapOutline size={30} />
+                <LuMap size={26} />
             </Link>
             <Link to="/" label={t('nav.home')}>
-                <IoHomeOutline size={30} />
+                <LuHouse size={26} />
             </Link>
             <Link to="/schedule" label={t('nav.schedule')}>
-                <IoCalendarOutline size={30} />
+                <LuCalendarDays size={26} />
             </Link>
             <Link to="/settings" label={t('nav.settings')}>
-                <IoCogOutline size={30} />
+                <LuSettings size={26} />
             </Link>
         </div>
     )

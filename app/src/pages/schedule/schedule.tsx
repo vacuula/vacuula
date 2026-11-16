@@ -3,7 +3,8 @@ import styles from './schedule.module.scss'
 import Drawer from '../../components/drawer/drawer'
 
 import type { GetSchedule, ScheduleEvent } from './types'
-import { FaTrash } from 'react-icons/fa'
+import { LuPlus, LuTrash2 } from 'react-icons/lu'
+import { PageTitle, SectionLabel, ui } from '../../components/ui/ui'
 import Input from '../../components/input/input'
 import Button from '../../components/button/button'
 import { GEN3_COMMANDS } from '../../http/gen3'
@@ -74,51 +75,67 @@ export default () => {
 
     if (!schedule) return
 
+    // Week strip, Monday first; a day is lit when at least one slot uses it.
+    const week = [RobotDay.MONDAY, RobotDay.TUESDAY, RobotDay.WEDNESDAY, RobotDay.THURSDAY, RobotDay.FRIDAY, RobotDay.SATURDAY, RobotDay.SUNDAY]
+    const busyDays = new Set((schedule.events ?? []).map(e => e.day))
+    const zoneName = (id?: string) => id ? zoneOptions.find(o => o.value === id)?.label ?? id : undefined
+    // Sorted by day (Monday first) then time, keeping the index the robot uses.
+    const events = (schedule.events ?? []).map((e, index) => ({ e, index }))
+        .sort((x, y) => week.indexOf(x.e.day) - week.indexOf(y.e.day) || x.e.startTime.localeCompare(y.e.startTime))
+
     return (
-        <div className={styles.container}>
+        <div className={`${ui.page} ${styles.container}`}>
+            <PageTitle>{t('ui.scheduleTitle')}</PageTitle>
 
-            <div className={styles.featureList}>
-                <div className={`${styles.item} ${styles.staticItem}`}>
-                    <div className={styles.info}>
-                        <span>{t('schedule.schedule')}</span>
-                        {serverInfo && (
-                            <span className={styles.type}>{serverInfo.timezone}</span>
-                        )}
-                    </div>
-                    <Input type="switch" skipSection={true} value={schedule.enabled} onChange={() => {
-                        let cmd = GEN3_COMMANDS.enableSchedule;
-                        if (schedule.enabled) cmd = GEN3_COMMANDS.disableSchedule;
-                        cmd(robot.serial).then(() => getSchedule());
-                    }} />
-                </div>
-
-                <hr style={{ width: '90%' }} />
-
-                <div className={`${styles.item} ${styles.actionItem}`} onClick={() => setDrawerOpen(true)}>
-                    <div className={styles.info}>
-                        <span>{t('schedule.newSchedule')}</span>
-                        <span className={styles.type}>{t('schedule.addOneMore')}</span>
-                    </div>
-                </div>
-
-                {schedule.events?.map((item, i) => {
-                    return (
-                        <div key={i} className={styles.item}>
-                            <div className={styles.info}>
-                                <span>{item.startTime}</span>
-                                <span className={styles.type}>
-                                    {t('schedule.gen3Summary', { day: t(`days.${dayKey(item.day)}`), mode: CleaningMode[item.mode] })}
-                                    {item.boundary && ` | ${t('schedule.gen3SummaryZone', { zone: item.boundary.name })}`}
-                                </span>
-                            </div>
-                            <FaTrash onClick={() => removeEvent(i)} />
-                        </div>
-                    )
-                })}
-                {schedule.events?.length === 0 && (
-                    <span style={{ textAlign: 'center' }}>{t('schedule.noSchedules')}</span>
-                )}
+            <div className={`${ui.card} ${ui.rowCard}`}>
+                <span className={ui.grow}>
+                    <span className={ui.rowTitle}>{t('ui.scheduled')}</span>
+                    {serverInfo && <span className={ui.muted}>{serverInfo.timezone}</span>}
+                </span>
+                <Input type="switch" skipSection={true} value={schedule.enabled} onChange={() => {
+                    let cmd = GEN3_COMMANDS.enableSchedule;
+                    if (schedule.enabled) cmd = GEN3_COMMANDS.disableSchedule;
+                    cmd(robot.serial).then(() => getSchedule());
+                }} />
             </div>
+
+            <div className={ui.card}>
+                <SectionLabel>{t('ui.thisWeek')}</SectionLabel>
+                <div className={styles.week}>
+                    {week.map(d => (
+                        <div key={d} className={`${styles.day} ${busyDays.has(d) ? styles.dayOn : ''}`}>
+                            <span>{t(`days.${dayKey(d)}`).slice(0, 1).toUpperCase()}</span>
+                            <span className={styles.dot} />
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {events.map(({ e, index }) => (
+                <div key={index} className={ui.card}>
+                    <div className={styles.slotHead}>
+                        <span className={styles.time}>{e.startTime}</span>
+                        <button type="button" className={styles.remove} aria-label={t('common.delete')} onClick={() => removeEvent(index)}>
+                            <LuTrash2 size={18} />
+                        </button>
+                    </div>
+                    <div className={ui.rowTitle}>{t(`days.${dayKey(e.day)}`)}</div>
+                    <div className={styles.pills}>
+                        <span className={styles.pill}>{zoneName(e.boundaryId) ? t('ui.zone', { name: zoneName(e.boundaryId) }) : t('ui.wholeHouse')}</span>
+                        <span className={styles.pill}>{e.mode === CleaningMode.ECO ? t('modes.eco') : t('modes.turbo')}</span>
+                    </div>
+                </div>
+            ))}
+            {events.length === 0 && (
+                <span className={ui.info} style={{ textAlign: 'center' }}>{t('schedule.noSchedules')}</span>
+            )}
+
+            <div className={ui.info}>{t('ui.scheduleZoneHint')}</div>
+
+            <button type="button" className={`${ui.primary} ${styles.newSlot}`} onClick={() => setDrawerOpen(true)}>
+                <LuPlus size={20} aria-hidden="true" />{t('ui.newSlot')}
+            </button>
+
             <Drawer
                 open={drawerOpen}
                 handle={false}

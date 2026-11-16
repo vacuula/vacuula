@@ -188,6 +188,9 @@
   --nav-label-display: none;
   --nav-bg: var(--bg);
   --nav-border: none;
+  --radius-card: 1.6rem;
+  --radius-control: 1.4rem;
+  --card-shadow: none;
 }
 
 /* ---------- Page ---------- */
