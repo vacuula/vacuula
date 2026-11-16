@@ -151,6 +151,18 @@ export default function Home() {
         .filter(m => 'enabled' in m && m.enabled)
         .flatMap(m => getCachedZones(robot.serial, m.id).map(z => ({ value: `${m.id}||:||${z.id}`, label: `${m.name} - ${z.name}` })))
 
+    // Gen3 multi-zone: up to 16 zones of the same map, cleaned in the order they were picked.
+    // Once a zone is picked, only the zones of its map stay selectable.
+    const GEN3_MAX_ZONES = 16
+    const selectedMapId = selectedZones[0]?.split('||:||')[0]
+    const gen3ZoneOptions = zoneOptions
+        .filter(o => !selectedMapId || o.value.startsWith(`${selectedMapId}||:||`))
+        .filter(o => selectedZones.length < GEN3_MAX_ZONES || selectedZones.includes(o.value))
+        .map(o => {
+            const order = selectedZones.indexOf(o.value)
+            return order >= 0 && selectedZones.length > 1 ? { ...o, label: `${order + 1}. ${o.label}` } : o
+        })
+
     if (!isDocked(robot) && gen3__cleaningCategory === CleaningCategory.MAP ) gen3__setCleaningCategory(CleaningCategory.HOUSE)
         
     return (
@@ -321,10 +333,11 @@ export default function Home() {
                                         && (persistentMaps ?? []).filter(m => 'enabled' in m && m.enabled).length === 0
                                     ) cat = CleaningCategory.HOUSE; // fallback to house if no maps exist
 
-                                    // TODO: gen3 has no mutlizone yet
-                                    if (cat === CleaningCategory.MAP && selectedZones.length === 1 && isDocked(robot)) {
-                                        const [mapId, zoneId] = selectedZones[0].split('||:||')
-                                        GEN3_COMMANDS.startCleaningZone(robot.serial, mapId, zoneId, gen3__cleaningMode, gen3__navigationMode)
+                                    if (cat === CleaningCategory.MAP && selectedZones.length > 0 && isDocked(robot)) {
+                                        const [mapId] = selectedZones[0].split('||:||')
+                                        const zoneIds = selectedZones.map(z => z.split('||:||')[1])
+                                        if (zoneIds.length === 1) GEN3_COMMANDS.startCleaningZone(robot.serial, mapId, zoneIds[0], gen3__cleaningMode, gen3__navigationMode)
+                                        else GEN3_COMMANDS.startCleaningZones(robot.serial, mapId, zoneIds, gen3__cleaningMode, gen3__navigationMode)
                                         return
                                     }
                                     GEN3_COMMANDS.startCleaning(robot.serial, cat, gen3__cleaningMode, gen3__navigationMode)
@@ -427,13 +440,12 @@ export default function Home() {
 
                             {robot.type === RobotType.NeatoGen3 && zoneOptions.length > 0 && (
                                 <Input
-                                    type="select"
+                                    type="multi-select"
                                     label={t('schedule.selectZones')}
                                     extraInfo={t('schedule.selectZonesHelp')}
-                                    options={zoneOptions}
-                                    allowDeselect={true}
-                                    value={selectedZones[0]}
-                                    onChange={(value) => value ? setSelectedZones([value]) : setSelectedZones([])}
+                                    options={gen3ZoneOptions}
+                                    value={selectedZones}
+                                    onChange={setSelectedZones}
                                 />
                             )}
                         </>

@@ -100,14 +100,15 @@ function startCleaningZone(serial: string, mapId: string, zoneId: string, mode: 
     })
 }
 
-// Is this really how it works?
-function startCleaningZones(serial: string, zoneIds: string[], mode: CleaningMode, navigationMode: CleaningNavigationMode) {
+// Multi-zone cleaning (houseCleaning basic-4): the zones are cleaned in the given order.
+function startCleaningZones(serial: string, mapId: string, zoneIds: string[], mode: CleaningMode, navigationMode: CleaningNavigationMode) {
     return Http.sendCmd(serial, {
         cmd: "startCleaning",
         params: {
             category: CleaningCategory.MAP,
             mode,
             navigationMode,
+            mapId,
             boundaryIds: zoneIds,
         }
     })
