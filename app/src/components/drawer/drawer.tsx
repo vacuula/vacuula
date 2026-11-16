@@ -110,7 +110,11 @@ export default function Drawer(props: DrawerProps) {
         if (drawerHeight > 100) setContentMounted(true)
     }, [drawerHeight])
 
+    // The clip frame sits at the bottom of the (non-scrolling) content area and
+    // hides whatever slid below it, so a closed sheet never makes the page
+    // taller or reachable by scrolling. It lets touches through to the page.
     return (
+        <div className={styles.clip} style={{ height: `${frameHeight}px` }}>
         <div
             className={styles.drawer}
             onTransitionEnd={(e) => {
@@ -146,6 +150,7 @@ export default function Drawer(props: DrawerProps) {
                     {props.children}
                 </div>
             )}
+        </div>
         </div>
     )
 }
