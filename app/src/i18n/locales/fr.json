@@ -1,6 +1,18 @@
 {
     "String-version": "1",
     "ui": {
+        "days": "Jours",
+        "time": "Heure",
+        "saveSlots_one": "Enregistrer le créneau",
+        "saveSlots_other": "Enregistrer · {{count}} créneaux",
+        "pickDay": "Choisis au moins un jour.",
+        "scheduleMultiTest": "Plusieurs zones dans un même créneau : pas encore essayé sur le robot.",
+        "scheduleSaveFailed": "Le robot a refusé ce planning, rien n'a changé.",
+        "wholeHouseHint": "Sans zone choisie, toute la maison est nettoyée.",
+        "newSlotTitle": "Nouveau créneau",
+        "everyDay": "Tous les jours",
+        "weekdays": "En semaine",
+        "weekend": "Week-end",
         "baseRefused": "Le robot a refusé de rentrer à sa base.",
         "baseNotSeen": "Le robot ne sait pas où est sa base (il ne l'a pas encore repérée) : remets-le dessus à la main.",
         "needsDock": "Le robot doit être sur sa base pour nettoyer une carte ou des zones.",

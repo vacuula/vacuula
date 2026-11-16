@@ -6,6 +6,7 @@ export interface ScheduleEvent {
     day: RobotDay
     startTime: string // HH:MM
     boundaryId?: string // Zone cleaning
+    boundaryIds?: string[] // Several zones, in cleaning order (not tried on a robot yet)
 }
 
 export interface GetSchedule {

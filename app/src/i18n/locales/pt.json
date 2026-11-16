@@ -1,6 +1,18 @@
 {
     "String-version": "0",
     "ui": {
+        "days": "Dias",
+        "time": "Hora",
+        "saveSlots_one": "Guardar o horário",
+        "saveSlots_other": "Guardar · {{count}} horários",
+        "pickDay": "Escolha pelo menos um dia.",
+        "scheduleMultiTest": "Várias zonas num horário: ainda não testado no robô.",
+        "scheduleSaveFailed": "O robô recusou esta agenda, nada mudou.",
+        "wholeHouseHint": "Sem zona escolhida, limpa a casa inteira.",
+        "newSlotTitle": "Novo horário",
+        "everyDay": "Todos os dias",
+        "weekdays": "Dias úteis",
+        "weekend": "Fim de semana",
         "baseRefused": "O robô recusou voltar à base.",
         "baseNotSeen": "O robô não sabe onde está a base (ainda não a viu): ponha-o na base à mão.",
         "needsDock": "O robô tem de estar na base para limpar um mapa ou zonas.",
