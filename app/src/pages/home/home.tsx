@@ -395,7 +395,7 @@ export default function Home() {
             </button>
 
             {/* ── Routines (gen3 zone sets) ── */}
-            {robot.type === RobotType.NeatoGen3 && zoneOptions.length > 0 && isDocked(robot) && (
+            {robot.type === RobotType.NeatoGen3 && zoneOptions.length > 0 && (
                 <>
                     <div className={styles.routinesHead}>
                     <SectionLabel right={currentRoutine && (
@@ -425,6 +425,8 @@ export default function Home() {
                             setCategoryDrawerOpen(true)
                         }} />
                     </div>
+                    {/* Routines stay visible off the base; only starting needs the base. */}
+                    {!isDocked(robot) && <div className={ui.small}>{t('ui.putOnBase')}</div>}
                 </>
             )}
 

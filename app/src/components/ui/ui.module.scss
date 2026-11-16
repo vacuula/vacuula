@@ -219,6 +219,45 @@ button.rowCard {
     border: 2px solid $text-muted;
 }
 
+.colorDot {
+    width: 1.2rem;
+    height: 1.2rem;
+    margin: 0 0.5rem;
+    flex: none;
+    border-radius: 999px;
+}
+
+.colorDotSmall {
+    width: 1rem;
+    height: 1rem;
+    flex: none;
+    border-radius: 999px;
+}
+
+// Edit mode: square checkbox in place of the order badge
+.check {
+    width: 2.2rem;
+    height: 2.2rem;
+    flex: none;
+    border-radius: 0.6rem;
+    border: 2px solid $text-muted;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.checkOn {
+    background: $accent;
+    border-color: $accent;
+    color: $on-accent;
+}
+
+.chip.checkedChip {
+    border-width: 2px;
+    font-weight: 800;
+}
+
 .dashed {
     background: none;
     box-shadow: none;

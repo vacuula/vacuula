@@ -11,7 +11,8 @@ interface DrawerProps {
     openHeightPercent: number
     onOpenChange?: (open: boolean) => void,
     children?: React.ReactNode,
-    title?: string,
+    /** A string, or a node (e.g. a rename field) that handles its own clicks. */
+    title?: React.ReactNode,
 
     showBackButton?: boolean
     onBackButtonClick?: () => void

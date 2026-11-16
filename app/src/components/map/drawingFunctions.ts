@@ -266,6 +266,98 @@ export function drawZones(
     }
 }
 
+export interface ZoneHighlight {
+    /** Zones to bring forward, in cleaning order; the others are dimmed. */
+    picked: string[]
+    /** Draw the cleaning order number on the picked zones. */
+    numbered: boolean
+}
+
+function cssVar(name: string, fallback: string) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback
+}
+
+/** Zones with their names written on the map. With a highlight, the picked
+ *  zones stand out (and carry their order number) and the others are dimmed,
+ *  so the map and the zone list read as one. */
+export function drawZonesLabelled(
+    ctx: CanvasRenderingContext2D,
+    zones: Zone[],
+    zoom: number,
+    offset: { x: number; y: number },
+    mapSize: { height: number, width: number },
+    highlight?: ZoneHighlight,
+) {
+    const picked = highlight?.picked ?? []
+    const baseWidth = Math.max(DRAWING.MIN_LINE_WIDTH, zoom * DRAWING.POLYGON_LINE_WIDTH_SCALE)
+    const sx = mapSize.width * zoom
+    const sy = mapSize.height * zoom
+
+    for (const zone of zones) {
+        if (zone.vertices.length < 3) continue
+        const on = picked.includes(zone.id)
+        const dim = picked.length > 0 && !on
+        ctx.save()
+        ctx.lineWidth = on ? baseWidth * 2 : baseWidth
+        ctx.globalAlpha = dim ? 0.45 : 1
+        ctx.strokeStyle = normalizeHex(zone.color) ?? COLORS.LINE_COLOR
+        ctx.fillStyle = withAlpha(zone.color, on ? 0.42 : dim ? 0.08 : DRAWING.ZONE_FILL_ALPHA, COLORS.POLYGON_FILL)
+        ctx.beginPath()
+        zone.vertices.forEach((p, i) => i === 0 ? ctx.moveTo(offset.x + p[0] * sx, offset.y + p[1] * sy) : ctx.lineTo(offset.x + p[0] * sx, offset.y + p[1] * sy))
+        ctx.closePath()
+        ctx.fill()
+        ctx.stroke()
+        ctx.restore()
+    }
+
+    // Names (and order numbers) on top of every zone outline
+    const font = cssVar('--font-ui', 'system-ui, sans-serif')
+    const text = cssVar('--text', '#e6ebe8')
+    const muted = cssVar('--text-muted', '#9ca8a2')
+    const halo = cssVar('--bg', '#111513')
+    for (const zone of zones) {
+        if (zone.vertices.length < 3) continue
+        const order = picked.indexOf(zone.id) + 1
+        const dim = picked.length > 0 && order === 0
+        const cx = offset.x + (zone.vertices.reduce((a, p) => a + p[0], 0) / zone.vertices.length) * sx
+        const cy = offset.y + (zone.vertices.reduce((a, p) => a + p[1], 0) / zone.vertices.length) * sy
+        ctx.save()
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        let labelY = cy
+        if (highlight?.numbered && order > 0) {
+            ctx.fillStyle = normalizeHex(zone.color) ?? COLORS.LINE_COLOR
+            ctx.beginPath()
+            ctx.arc(cx, cy - 9, 11, 0, Math.PI * 2)
+            ctx.fill()
+            ctx.fillStyle = '#111513'
+            ctx.font = `700 12px ${font}`
+            ctx.fillText(String(order), cx, cy - 8.5)
+            labelY = cy + 13
+        }
+        if (zone.name) {
+            ctx.font = `600 12px ${font}`
+            ctx.lineJoin = 'round'
+            ctx.lineWidth = 3
+            ctx.strokeStyle = halo
+            ctx.strokeText(zone.name, cx, labelY)
+            ctx.fillStyle = dim ? muted : text
+            ctx.fillText(zone.name, cx, labelY)
+        }
+        ctx.restore()
+    }
+}
+
+/** True when the point (map coordinates, 0..1) is inside the polygon. */
+export function pointInZone(point: [number, number], vertices: [number, number][]) {
+    let inside = false
+    for (let i = 0, j = vertices.length - 1; i < vertices.length; j = i++) {
+        const [xi, yi] = vertices[i], [xj, yj] = vertices[j]
+        if ((yi > point[1]) !== (yj > point[1]) && point[0] < (xj - xi) * (point[1] - yi) / (yj - yi) + xi) inside = !inside
+    }
+    return inside
+}
+
 /* ---------------- POLYLINES ---------------- */
 
 function drawNoGoLine(
