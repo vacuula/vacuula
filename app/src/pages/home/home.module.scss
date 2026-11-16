@@ -322,3 +322,19 @@
 .alerts:empty {
     display: none;
 }
+
+// Feedback of the Base button (going home, or why the robot refused).
+.notice {
+    padding: 1rem 1.4rem;
+    border-radius: var(--radius-control);
+    background: $surface-neutral-2;
+    color: $text-primary;
+    font-size: 1.3rem;
+    line-height: 1.4;
+    text-align: center;
+}
+
+.noticeWarn {
+    background: $warn-bg;
+    color: $warn-text;
+}

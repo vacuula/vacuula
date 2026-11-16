@@ -1,6 +1,10 @@
 {
     "String-version": "1",
     "ui": {
+        "baseRefused": "Le robot a refusé de rentrer à sa base.",
+        "baseNotSeen": "Le robot ne sait pas où est sa base (il ne l'a pas encore repérée) : remets-le dessus à la main.",
+        "needsDock": "Le robot doit être sur sa base pour nettoyer une carte ou des zones.",
+        "goingHome": "Retour à la base…",
         "lastRun": "Dernier passage · {{time}}",
         "lastRunStats": "{{area}} · {{duration}} · {{battery}} % de batterie",
         "noRunYet": "Aucun passage pour l'instant",
