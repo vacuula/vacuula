@@ -397,6 +397,7 @@ export default function Home() {
             {/* ── Routines (gen3 zone sets) ── */}
             {robot.type === RobotType.NeatoGen3 && zoneOptions.length > 0 && isDocked(robot) && (
                 <>
+                    <div className={styles.routinesHead}>
                     <SectionLabel right={currentRoutine && (
                         <button type="button" className={`${styles.routineDelete} ${confirmRoutineDelete ? styles.routineDeleteConfirm : ''}`}
                             onClick={() => {
@@ -409,6 +410,7 @@ export default function Home() {
                             {confirmRoutineDelete ? t('ui.confirm') : t('ui.deleteNamed', { name: currentRoutine.name })}
                         </button>
                     )}>{t('ui.routines')}</SectionLabel>
+                    </div>
                     <div className={ui.grid3}>
                         {usableRoutines.map(r => (
                             <Chip key={r.id} label={r.name} sub={t('ui.zones', { count: r.zones.length })}
