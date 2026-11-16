@@ -15,6 +15,8 @@ interface DrawerProps {
 
     showBackButton?: boolean
     onBackButtonClick?: () => void
+    /** Shown on the right of the title while the sheet is open (e.g. a Save button). */
+    headerAction?: React.ReactNode
 }
 
 const HANDLE_HEIGHT = 60
@@ -142,6 +144,11 @@ export default function Drawer(props: DrawerProps) {
                     <div className={styles.drawerTitle}>
                         {props.title || t('common.options')}
                     </div>
+                    {props.headerAction && props.open && (
+                        <div className={styles.headerAction} onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
+                            {props.headerAction}
+                        </div>
+                    )}
                 </div>
             )}
 

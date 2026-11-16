@@ -1,6 +1,12 @@
 {
     "String-version": "0",
     "ui": {
+        "mapSentReconnect": "Mapa enviado. O robô aplica-o e volta a ligar-se (cerca de 1 minuto).",
+        "saveBeforeClean": "Guarde o mapa antes de limpar: o robô ainda não conhece as alterações.",
+        "saved": "Guardado",
+        "saving": "A enviar…",
+        "saveRetry": "Repetir",
+        "unsavedLeave": "Há alterações ao mapa por guardar. Descartá-las?",
         "deleteNamed": "Apagar «{{name}}»",
         "addNoGo": "+ Linha proibida",
         "noGoHint": "Uma linha proibida impede o robô de passar: desenhe-a no mapa sem a fechar.",

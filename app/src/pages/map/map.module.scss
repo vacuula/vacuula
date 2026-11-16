@@ -361,3 +361,28 @@
     border-color: $err;
     color: #ffffff;
 }
+
+.saveButton {
+    min-height: 3.6rem;
+    padding: 0 1.4rem;
+    border-radius: 999px;
+    border: 1px solid $border;
+    background: $surface;
+    color: $text-muted;
+    font: inherit;
+    font-size: 1.3rem;
+    font-weight: 700;
+    @include pressable;
+}
+
+.saveDirty {
+    border-color: $accent;
+    background: $accent;
+    color: $on-accent;
+}
+
+.saveFailed {
+    border-color: $err;
+    background: $err;
+    color: #ffffff;
+}

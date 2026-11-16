@@ -55,7 +55,18 @@ export default () => {
     const [activeBoundaryId, setActiveBoundaryId] = useState<string | undefined>(undefined);
 
     const { robot } = useRobot()
-    const skipNextPostRef = useRef(false)
+    // Boundary changes stay local until Save: every save makes a gen3 robot
+    // drop its connection for about a minute, so they are sent all at once.
+    const [savedBoundaries, setSavedBoundaries] = useState('[]')
+    const [saving, setSaving] = useState(false)
+    const [saveFailed, setSaveFailed] = useState(false)
+    const [saveNotice, setSaveNotice] = useState<string>()
+    useEffect(() => {
+        if (!saveNotice) return
+        const timer = setTimeout(() => setSaveNotice(undefined), 60000)
+        return () => clearTimeout(timer)
+    }, [saveNotice])
+    const dirty = JSON.stringify(boundaries) !== savedBoundaries
 
     const { data: persistentMaps, refresh: updatePersistentMaps } = usePersistentMaps()
     const getPromotedFloorplan = useGetPromotedFloorplan()
@@ -132,45 +143,60 @@ export default () => {
 
     const getMapBoundaries = () => {
         if (!persistentMap) return
-        skipNextPostRef.current = true
+        const loaded = (b: (NoGoLine | Zone)[]) => {
+            setBoundaries(b)
+            setSavedBoundaries(JSON.stringify(b))
+        }
         if (robot.type === RobotType.NeatoGen4) {
-            Http.getBoundaries(robot.serial, persistentMap).then(res => setBoundaries(res.data))
+            Http.getBoundaries(robot.serial, persistentMap).then(res => loaded(res.data))
         } else {
-            // GEN3_COMMANDS.getMapBoundaries(robot.serial, persistentMap).then(res => setBoundaries(res.data.data.boundaries))
-            fetchGen3MapBoundaries(robot.serial, persistentMap).then(b => setBoundaries([...b]))
+            fetchGen3MapBoundaries(robot.serial, persistentMap).then(b => loaded([...b]))
         }
     }
 
-    useEffect(() => {
-        if (!persistentMap) return;
-        if (skipNextPostRef.current) {
-            skipNextPostRef.current = false
-            return
-        }
-        if (robot.type === RobotType.NeatoGen4) {
-            Http.postBoundaries(robot.serial, persistentMap, boundaries).then(() => {
-                getMapBoundaries();
+    const saveBoundaries = async () => {
+        if (!persistentMap || !dirty) return
+        setSaving(true)
+        setSaveFailed(false)
+        const snapshot = boundaries
+        try {
+            if (robot.type === RobotType.NeatoGen4) {
+                await Http.postBoundaries(robot.serial, persistentMap, snapshot)
+                getMapBoundaries()
                 const map = persistentMaps?.find(p => p.id === persistentMap)
                 // If the map is promoted, promote it again
                 if (map && 'promoted' in map && map.promoted) {
                     Http.promoteFloorplan(robot.serial, map.id).then(() => updatePersistentMaps());
                 }
-            });
-            return
+            } else {
+                const updatedBoundaries = snapshot.map(boundary =>
+                    boundary.type === 'polygon'
+                        ? { ...boundary, relevancy: calcRelevancy(boundary.vertices) }
+                        : { ...boundary, type: 'polyline' as const }
+                );
+                const res = await GEN3_COMMANDS.setMapBoundaries(robot.serial, persistentMap, updatedBoundaries)
+                const result = (res.data as { result?: string } | undefined)?.result
+                if (result && result !== 'ok') throw new Error(result)
+                setSavedBoundaries(JSON.stringify(snapshot))
+            }
+        } catch (err) {
+            // A gen3 robot usually does not answer a map change: it applies it
+            // and reconnects about a minute later, and the server times out
+            // (504). That is a success; only a real refusal is an error.
+            const status = (err as { response?: { status?: number } })?.response?.status
+            if (status === 504 || status === undefined && (err as Error)?.message?.includes('timeout')) {
+                setSavedBoundaries(JSON.stringify(snapshot))
+                setSaveNotice(t('ui.mapSentReconnect'))
+            } else {
+                setSaveFailed(true)
+            }
+        } finally {
+            setSaving(false)
         }
+    }
 
-        const updatedBoundaries = boundaries.map(boundary =>
-            boundary.type === 'polygon'
-                ? {
-                    ...boundary,
-                    relevancy: calcRelevancy(boundary.vertices)
-                }
-                : { ...boundary, type: 'polyline' as const }
-        );
-        GEN3_COMMANDS.setMapBoundaries(robot.serial, persistentMap, updatedBoundaries).catch(() => {
-            getMapBoundaries();
-        });
-    }, [boundaries]);
+    // Leaving a map with unsaved changes asks first.
+    const confirmDiscard = () => !dirty || window.confirm(t('ui.unsavedLeave'))
 
     // mode changes
     useEffect(() => {
@@ -251,6 +277,7 @@ export default () => {
 
     const handleBackBtn = () => {
         if (mode === 'boundaries') {
+            if (!confirmDiscard()) return
             setPersistentMap(undefined);
             setMode('maps')
         } else if (mode === 'map-edit' || mode === 'boundary-info') {
@@ -263,7 +290,7 @@ export default () => {
             case 'maps': return t('map.maps')
             case 'boundaries':
             case 'map-edit':
-                return t('map.mapTitle', { name: persistentMaps?.find(p => p.id === persistentMap)?.name ?? '' })
+                return persistentMaps?.find(p => p.id === persistentMap)?.name ?? ''
             case 'boundary-info': return ' '
             case 'boundary-edit':
                 if (!drawerOpen) return t('map.dragUpToFinish')
@@ -333,6 +360,12 @@ export default () => {
                 onOpenChange={setDrawerOpen}
                 openHeightPercent={mode === 'boundary-edit' ? 60 : mode === 'boundary-info' ? 30 : mode === 'boundaries' ? 58 : 70}
                 title={getTitle()}
+                headerAction={persistentMap && ['boundaries', 'boundary-info'].includes(mode) ? (
+                    <button type="button" className={`${styles.saveButton} ${dirty ? styles.saveDirty : ''} ${saveFailed ? styles.saveFailed : ''}`}
+                        disabled={!dirty || saving} onClick={saveBoundaries}>
+                        {saving ? t('ui.saving') : saveFailed ? t('ui.saveRetry') : dirty ? t('common.save') : t('ui.saved')}
+                    </button>
+                ) : undefined}
             >
                 {mode === 'maps' && (
                     <div className={styles.featureList}>
@@ -448,7 +481,7 @@ export default () => {
                             <div className={styles.mapTabs}>
                                 {enabledMaps.map(m => (
                                     <button key={m.id} type="button" className={`${styles.mapTab} ${m.id === persistentMap ? styles.mapTabOn : ''}`}
-                                        onClick={() => setPersistentMap(m.id)}>{m.name}</button>
+                                        onClick={() => m.id !== persistentMap && confirmDiscard() && setPersistentMap(m.id)}>{m.name}</button>
                                 ))}
                                 <span style={{ flex: 1 }} />
                                 {robot.type === RobotType.NeatoGen4
@@ -498,6 +531,8 @@ export default () => {
                             )}
 
                             {!isDocked(robot) && <div className={ui.info}>{t('ui.needsDock')}</div>}
+                            {dirty && <div className={ui.info}>{t('ui.saveBeforeClean')}</div>}
+                            {saveNotice && !dirty && <div className={ui.info}>{saveNotice}</div>}
 
                             {(() => {
                                 // One zone picked: it can be edited or deleted right here.
@@ -521,7 +556,7 @@ export default () => {
                                                 <LuTrash2 size={18} aria-hidden="true" />{confirmDelete ? t('ui.confirm') : t('common.delete')}
                                             </button>
                                         )}
-                                        <button type="button" className={ui.primary} disabled={!isDocked(robot) || selectedZones.length === 0 || !editable}
+                                        <button type="button" className={ui.primary} disabled={!isDocked(robot) || selectedZones.length === 0 || !editable || dirty}
                                             onClick={() => cleanZones(selectedZones)}>
                                             <LuPlay size={18} fill="currentColor" aria-hidden="true" />
                                             {single ? t('ui.cleanTitle') : selectedZones.length ? t('ui.cleanZones', { count: selectedZones.length }) : t('ui.cleanTitle')}

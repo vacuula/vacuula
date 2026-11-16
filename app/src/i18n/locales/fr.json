@@ -1,6 +1,12 @@
 {
     "String-version": "1",
     "ui": {
+        "mapSentReconnect": "Carte envoyée. Le robot l'applique et se reconnecte (environ 1 minute).",
+        "saveBeforeClean": "Enregistre la carte avant de nettoyer : le robot ne connaît pas encore tes modifications.",
+        "saved": "Enregistré",
+        "saving": "Envoi…",
+        "saveRetry": "Réessayer",
+        "unsavedLeave": "Des modifications de la carte ne sont pas enregistrées. Les abandonner ?",
         "deleteNamed": "Supprimer « {{name}} »",
         "addNoGo": "+ Ligne interdite",
         "noGoHint": "Une ligne interdite empêche le robot de passer : trace-la sur la carte sans la refermer.",
