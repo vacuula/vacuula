@@ -1,5 +1,5 @@
 # frontend
-FROM --platform=$BUILDPLATFORM node:22-alpine AS frontend
+FROM --platform=$BUILDPLATFORM node:26-alpine AS frontend
 
 WORKDIR /app
 
@@ -14,7 +14,7 @@ COPY app/ ./
 RUN pnpm vite build
 
 
-FROM python:3.14-slim AS python-build
+FROM python:3.15-slim AS python-build
 
 COPY --from=ghcr.io/astral-sh/uv:0.12 /uv /uvx /bin/
 
@@ -36,7 +36,7 @@ RUN uv sync --frozen --no-dev --no-editable
 
 
 # final server image
-FROM python:3.14-slim
+FROM python:3.15-slim
 
 WORKDIR /server
 
