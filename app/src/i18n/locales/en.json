@@ -1,6 +1,18 @@
 {
     "String-version": "4",
     "ui": {
+        "days": "Days",
+        "time": "Time",
+        "saveSlots_one": "Save the slot",
+        "saveSlots_other": "Save · {{count}} slots",
+        "pickDay": "Pick at least one day.",
+        "scheduleMultiTest": "Several zones in one slot: not tried on the robot yet.",
+        "scheduleSaveFailed": "The robot refused this schedule, nothing changed.",
+        "wholeHouseHint": "With no zone picked, the whole house is cleaned.",
+        "newSlotTitle": "New slot",
+        "everyDay": "Every day",
+        "weekdays": "Weekdays",
+        "weekend": "Weekend",
         "baseRefused": "The robot refused to go back to its base.",
         "baseNotSeen": "The robot does not know where its base is (it has not seen it yet): put it back on the base by hand.",
         "needsDock": "The robot must be on its base to clean a map or zones.",

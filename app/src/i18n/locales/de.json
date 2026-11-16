@@ -1,6 +1,18 @@
 {
     "String-version": "3",
     "ui": {
+        "days": "Tage",
+        "time": "Uhrzeit",
+        "saveSlots_one": "Termin speichern",
+        "saveSlots_other": "Speichern · {{count}} Termine",
+        "pickDay": "Wähle mindestens einen Tag.",
+        "scheduleMultiTest": "Mehrere Zonen in einem Termin: am Roboter noch nicht getestet.",
+        "scheduleSaveFailed": "Der Roboter hat diesen Zeitplan abgelehnt, nichts wurde geändert.",
+        "wholeHouseHint": "Ohne Zone wird das ganze Haus gereinigt.",
+        "newSlotTitle": "Neuer Termin",
+        "everyDay": "Täglich",
+        "weekdays": "Werktags",
+        "weekend": "Wochenende",
         "baseRefused": "Der Roboter hat die Rückkehr zur Basis abgelehnt.",
         "baseNotSeen": "Der Roboter weiß nicht, wo seine Basis ist (er hat sie noch nicht gesehen): setze ihn von Hand darauf.",
         "needsDock": "Der Roboter muss auf seiner Basis stehen, um eine Karte oder Zonen zu reinigen.",

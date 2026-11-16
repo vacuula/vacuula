@@ -384,3 +384,52 @@
     margin-top: auto;
     flex: none;
 }
+
+// ── New slot form ──
+.dayButton {
+    font: inherit;
+    font-size: 1.2rem;
+    font-weight: 700;
+    cursor: pointer;
+    @include pressable;
+}
+
+.presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+}
+
+.preset {
+    min-height: 3.4rem;
+    padding: 0 1.2rem;
+    border-radius: 999px;
+    border: 1px solid $border;
+    background: $surface;
+    color: $text-primary;
+    font: inherit;
+    font-size: 1.25rem;
+    font-weight: 600;
+    @include pressable;
+}
+
+.timeInput {
+    min-height: 6rem;
+    padding: 0 1.6rem;
+    border-radius: var(--radius-control);
+    border: 1px solid $border;
+    background: $surface;
+    color: $text-primary;
+    font: inherit;
+    font-size: 3rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+
+.formError {
+    padding: 1rem 1.4rem;
+    border-radius: var(--radius-control);
+    background: $warn-bg;
+    color: $warn-text;
+    font-size: 1.3rem;
+}
