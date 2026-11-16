@@ -1,0 +1,112 @@
+/*
+ * Style "Nordique": off-white paper and ink in light mode, deep green-black in
+ * the dark modes, a single fir-green accent, DM Sans text with DM Mono
+ * figures, sentence-case labels and a labelled navigation bar.
+ *
+ * Applies with data-style="nordique" on <html>. The dark and soft modes share
+ * the dark palette. Selectors carry [data-theme] so they win over the accent
+ * blocks of theme.css (same specificity, this file is loaded after it).
+ * Page backgrounds must match STYLE_BACKGROUND in src/theme/index.ts and the
+ * script in index.html.
+ */
+@import '@fontsource/dm-sans/400.css';
+@import '@fontsource/dm-sans/500.css';
+@import '@fontsource/dm-sans/700.css';
+@import '@fontsource/dm-mono/400.css';
+@import '@fontsource/dm-mono/500.css';
+
+/* ---------- Shared by both palettes ---------- */
+:root[data-style="nordique"] {
+  --font-ui: 'DM Sans', system-ui, sans-serif;
+  --font-mono: 'DM Mono', ui-monospace, monospace;
+  --label-transform: none;
+  --label-color: var(--text-muted);
+  --nav-label-display: block;
+  --nav-bg: var(--surface);
+  --nav-border: 1px solid var(--border);
+}
+
+:root[data-style="nordique"] :is(button, input, select, textarea) {
+  font-family: inherit;
+}
+
+/* ---------- Dark palette (modes dark and soft) ---------- */
+:root[data-style="nordique"]:is([data-theme="dark"], [data-theme="soft"]) {
+  color-scheme: dark;
+
+  --bg: #111513;
+  --surface: #181d1b;
+  --surface-hover: #1f2522;
+  --surface-2: #252c29;
+
+  --border: #2a322e;
+  --border-strong: #3a443f;
+
+  --text: #e6ebe8;
+  --text-muted: #9ca8a2;
+  --text-dim: #66736d;
+
+  --accent: #5fbfa3;
+  --accent-hover: #79cdb4;
+  --on-accent: #0b1f19;
+
+  --overlay: rgba(0, 0, 0, 0.55);
+  --overlay-bg: rgba(17, 21, 19, 0.82);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
+
+  --switch-track: rgba(255, 255, 255, 0.14);
+  --switch-knob: #c5ceca;
+
+  --battery-text-on-fill: #0b1f19;
+
+  --map-bg: #161b19;
+  --map-editor-bg: #111513;
+  --map-empty: #2b3330;
+  --map-wall: #5fbfa3;
+  --map-grid: rgba(255, 255, 255, 0.16);
+  --map-line: #5fbfa3;
+  --map-crosshair: #5fbfa3;
+  --map-in-progress: #7db6f0;
+}
+
+/* ---------- Light palette ---------- */
+:root[data-style="nordique"][data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #f7f8f7;
+  --surface: #ffffff;
+  --surface-hover: #f1f3f2;
+  --surface-2: #eef1ef;
+
+  --border: #e0e4e1;
+  --border-strong: #cdd3cf;
+
+  --text: #16191b;
+  --text-muted: #5d666e;
+  --text-dim: #8a929a;
+
+  --accent: #1f6f5c;
+  --accent-hover: #185a4a;
+  --on-accent: #ffffff;
+
+  --overlay: rgba(0, 0, 0, 0.3);
+  --overlay-bg: rgba(247, 248, 247, 0.86);
+  --shadow-sm: 0 1px 2px rgba(22, 25, 27, 0.06);
+  --shadow-md: 0 4px 12px rgba(22, 25, 27, 0.08);
+  --shadow-lg: 0 8px 24px rgba(22, 25, 27, 0.1);
+
+  --switch-track: rgba(0, 0, 0, 0.12);
+  --switch-knob: #ffffff;
+
+  --battery-text-on-fill: #ffffff;
+
+  --map-bg: #dfe5e2;
+  --map-editor-bg: #dfe5e2;
+  --map-wall: #1f6f5c;
+  --map-grid: rgba(0, 0, 0, 0.12);
+  --map-line: #1f6f5c;
+  --map-crosshair: #1f6f5c;
+  --map-in-progress: #1f6fd0;
+}

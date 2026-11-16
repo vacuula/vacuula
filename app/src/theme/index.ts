@@ -29,15 +29,19 @@ export const ACCENT_STORAGE_KEY = 'vacuula.accent'
 // Style: a third axis for whole visual styles (shapes, fonts, colours), set as
 // data-style on <html>. Each style adds its own rules in theme.css under
 // [data-style="<id>"]; "menthe" is the current look and needs none.
-export type StyleId = 'menthe'
+export type StyleId = 'menthe' | 'nordique'
 
 export interface StyleOption {
     id: StyleId
+    /** Page background per mode when it differs from PAGE_BACKGROUND (see styles/<id>.css). */
+    background?: Record<ThemeMode, string>
 }
 
-// Add a style here after adding its rules in theme.css.
+// Add a style here after adding its stylesheet in ./styles (imported in main.tsx)
+// and its backgrounds in index.html.
 export const STYLES: StyleOption[] = [
     { id: 'menthe' },
+    { id: 'nordique', background: { dark: '#111513', soft: '#111513', light: '#f7f8f7' } },
 ]
 export const DEFAULT_STYLE = STYLES[0].id
 export const STYLE_STORAGE_KEY = 'vacuula.style'
@@ -89,10 +93,11 @@ export function applyTheme(mode: ThemeMode = getTheme(), accent: string = getAcc
     html.setAttribute('data-theme', mode)
     html.setAttribute('data-accent', accent)
     html.setAttribute('data-style', style)
-    html.style.backgroundColor = PAGE_BACKGROUND[mode]
+    const background = STYLES.find(s => s.id === style)?.background?.[mode] ?? PAGE_BACKGROUND[mode]
+    html.style.backgroundColor = background
     // "soft" is a dark scheme too (only "light" flips native controls/scrollbars).
     html.style.colorScheme = mode === 'light' ? 'light' : 'dark'
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', PAGE_BACKGROUND[mode])
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', background)
 }
 
 // --- tiny external store so any component can subscribe ---
