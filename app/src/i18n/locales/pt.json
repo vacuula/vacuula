@@ -181,6 +181,8 @@
         "appSettings": "Definições da aplicação",
         "appLanguage": "Idioma da aplicação",
         "theme": "Tema",
+        "style": "Estilo",
+        "style_menthe": "Menta",
         "theme_dark": "Escuro",
         "theme_soft": "Escuro (suave)",
         "theme_light": "Claro",

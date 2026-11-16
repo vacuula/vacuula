@@ -26,6 +26,22 @@ export const ACCENTS: AccentOption[] = [
 export const DEFAULT_ACCENT = ACCENTS[0].id
 export const ACCENT_STORAGE_KEY = 'vacuula.accent'
 
+// Style: a third axis for whole visual styles (shapes, fonts, colours), set as
+// data-style on <html>. Each style adds its own rules in theme.css under
+// [data-style="<id>"]; "menthe" is the current look and needs none.
+export type StyleId = 'menthe'
+
+export interface StyleOption {
+    id: StyleId
+}
+
+// Add a style here after adding its rules in theme.css.
+export const STYLES: StyleOption[] = [
+    { id: 'menthe' },
+]
+export const DEFAULT_STYLE = STYLES[0].id
+export const STYLE_STORAGE_KEY = 'vacuula.style'
+
 // Page background per mode. Must match --bg in theme.css and the script in index.html.
 const PAGE_BACKGROUND: Record<ThemeMode, string> = {
     dark: '#0f1113',
@@ -62,11 +78,17 @@ export function getAccent(): string {
     return ACCENTS.some(a => a.id === stored) ? (stored as string) : DEFAULT_ACCENT
 }
 
-/** Writes the current mode/accent to <html> (attributes, background, colour-scheme, theme-color). */
-export function applyTheme(mode: ThemeMode = getTheme(), accent: string = getAccent()) {
+export function getStyle(): string {
+    const stored = readStorage(STYLE_STORAGE_KEY)
+    return STYLES.some(s => s.id === stored) ? (stored as string) : DEFAULT_STYLE
+}
+
+/** Writes the current mode/accent/style to <html> (attributes, background, colour-scheme, theme-color). */
+export function applyTheme(mode: ThemeMode = getTheme(), accent: string = getAccent(), style: string = getStyle()) {
     const html = document.documentElement
     html.setAttribute('data-theme', mode)
     html.setAttribute('data-accent', accent)
+    html.setAttribute('data-style', style)
     html.style.backgroundColor = PAGE_BACKGROUND[mode]
     // "soft" is a dark scheme too (only "light" flips native controls/scrollbars).
     html.style.colorScheme = mode === 'light' ? 'light' : 'dark'
@@ -94,12 +116,21 @@ export function setAccent(accent: string) {
     notify()
 }
 
+export function setStyle(style: string) {
+    if (!STYLES.some(s => s.id === style)) return
+    writeStorage(STYLE_STORAGE_KEY, style)
+    applyTheme(getTheme(), getAccent(), style)
+    notify()
+}
+
 export function useTheme() {
     const theme = useSyncExternalStore(subscribe, getTheme, () => DEFAULT_THEME)
     const accent = useSyncExternalStore(subscribe, getAccent, () => DEFAULT_ACCENT)
+    const style = useSyncExternalStore(subscribe, getStyle, () => DEFAULT_STYLE)
     const set = useCallback((mode: ThemeMode) => setTheme(mode), [])
     const setAccentCb = useCallback((id: string) => setAccent(id), [])
-    return { theme, setTheme: set, accent, setAccent: setAccentCb, isDark: theme !== 'light' }
+    const setStyleCb = useCallback((id: string) => setStyle(id), [])
+    return { theme, setTheme: set, accent, setAccent: setAccentCb, style, setStyle: setStyleCb, isDark: theme !== 'light' }
 }
 
 // Make sure the attributes are present even if index.html's inline script was
