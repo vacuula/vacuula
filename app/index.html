@@ -16,8 +16,9 @@
           style = localStorage.getItem('vacuula.style') || style;
         } catch (e) {}
         var bgs = { dark: '#0f1113', soft: '#25292e', light: '#f4f6f5' };
+        var styleBgs = { nordique: { dark: '#111513', soft: '#111513', light: '#f7f8f7' } };
         if (!bgs[mode]) mode = 'dark';
-        var bg = bgs[mode];
+        var bg = (styleBgs[style] && styleBgs[style][mode]) || bgs[mode];
         var html = document.documentElement;
         html.setAttribute('data-theme', mode);
         html.setAttribute('data-accent', accent);

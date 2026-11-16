@@ -91,7 +91,7 @@
 
     code {
         color: $text-muted;
-        font-family: 'Space Mono', monospace;
+        font-family: var(--font-mono);
     }
 }
 

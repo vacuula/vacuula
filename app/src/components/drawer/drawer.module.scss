@@ -44,7 +44,7 @@
     font-weight: 600;
     font-size: 1.3rem;
     letter-spacing: 0.05rem;
-    text-transform: uppercase;
+    text-transform: var(--label-transform);
 }
 
 .drawerContent {

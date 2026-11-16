@@ -6,8 +6,15 @@
   align-items: center;
   justify-content: space-around;
   height: 100%;
-  background: $bg;
-  // border-top: 1px solid #1a1f2e;
+  background: var(--nav-bg);
+  border-top: var(--nav-border);
+}
+
+.label {
+  display: var(--nav-label-display);
+  font-size: 1.1rem;
+  font-weight: 600;
+  line-height: 1;
 }
 
 .link {

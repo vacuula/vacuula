@@ -220,7 +220,7 @@
 }
 
 .statValue {
-    font-family: 'Space Mono', monospace;
+    font-family: var(--font-mono);
     font-size: 18px;
     font-weight: 700;
     color: $text-primary;
@@ -397,10 +397,10 @@
 .categoryLabel {
     margin-bottom: 0.8rem;
     font-size: 0.9rem;
-    color: $accent;
+    color: var(--label-color);
     font-weight: 600;
     letter-spacing: 0.03rem;
-    text-transform: uppercase;
+    text-transform: var(--label-transform);
 }
 
 .categoryButtons {

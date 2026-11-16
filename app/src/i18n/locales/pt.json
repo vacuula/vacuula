@@ -1,5 +1,12 @@
 {
     "String-version": "0",
+    "nav": {
+        "runs": "Histórico",
+        "map": "Mapa",
+        "home": "Início",
+        "schedule": "Agenda",
+        "settings": "Definições"
+    },
     "common": {
         "save": "Guardar",
         "cancel": "Cancelar",
@@ -183,6 +190,7 @@
         "theme": "Tema",
         "style": "Estilo",
         "style_menthe": "Menta",
+        "style_nordique": "Nórdico",
         "theme_dark": "Escuro",
         "theme_soft": "Escuro (suave)",
         "theme_light": "Claro",

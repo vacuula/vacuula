@@ -10,10 +10,10 @@
 .label {
     margin-bottom: 0.8rem;
     font-size: 1.2rem;
-    color: $accent;
+    color: var(--label-color);
     font-weight: 600;
     letter-spacing: 0.03rem;
-    text-transform: uppercase;
+    text-transform: var(--label-transform);
 }
 
 .extraInfo {
