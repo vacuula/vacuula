@@ -1,6 +1,10 @@
 {
     "String-version": "1",
     "ui": {
+        "deleteNamed": "Supprimer « {{name}} »",
+        "addNoGo": "+ Ligne interdite",
+        "noGoHint": "Une ligne interdite empêche le robot de passer : trace-la sur la carte sans la refermer.",
+        "confirm": "Confirmer",
         "days": "Jours",
         "time": "Heure",
         "saveSlots_one": "Enregistrer le créneau",

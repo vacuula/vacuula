@@ -1,6 +1,10 @@
 {
     "String-version": "3",
     "ui": {
+        "deleteNamed": "„{{name}}“ löschen",
+        "addNoGo": "+ Sperrlinie",
+        "noGoHint": "Eine Sperrlinie hält den Roboter auf: zeichne sie auf der Karte, ohne sie zu schließen.",
+        "confirm": "Bestätigen",
         "days": "Tage",
         "time": "Uhrzeit",
         "saveSlots_one": "Termin speichern",

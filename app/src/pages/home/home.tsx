@@ -1,7 +1,7 @@
 import styles from './home.module.scss'
 import { useMascot } from '../../mascot'
 import { MdError, MdWarning } from 'react-icons/md'
-import { LuBell, LuMap, LuHouse, LuCrosshair, LuBrush, LuShieldCheck, LuSparkles, LuLeaf, LuFan, LuGauge, LuCircleDot, LuPlay, LuPause, LuSquare, LuClock, LuChevronRight } from 'react-icons/lu'
+import { LuBell, LuMap, LuHouse, LuCrosshair, LuBrush, LuShieldCheck, LuSparkles, LuLeaf, LuFan, LuGauge, LuCircleDot, LuPlay, LuPause, LuSquare, LuClock, LuChevronRight, LuTrash2 } from 'react-icons/lu'
 import { CleaningCategory, CleaningMode, CleaningNavigationMode } from '../../types/neato/gen3/state'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
@@ -195,6 +195,15 @@ export default function Home() {
     const usableRoutines = robot.type === RobotType.NeatoGen3 ? routines.filter(r => r.zones.every(z => knownZones.has(z))) : []
     const currentRoutine = usableRoutines.find(r => sameZones(r.zones, selectedZones))
 
+    // Deleting a routine takes a second tap within a few seconds.
+    const [confirmRoutineDelete, setConfirmRoutineDelete] = useState(false)
+    useEffect(() => setConfirmRoutineDelete(false), [currentRoutine?.id])
+    useEffect(() => {
+        if (!confirmRoutineDelete) return
+        const timer = setTimeout(() => setConfirmRoutineDelete(false), 4000)
+        return () => clearTimeout(timer)
+    }, [confirmRoutineDelete])
+
     if (!isDocked(robot) && gen3__cleaningCategory === CleaningCategory.MAP) gen3__setCleaningCategory(CleaningCategory.HOUSE)
 
     const cmds = robot.type === RobotType.NeatoGen3 ? GEN3_COMMANDS : GEN4_COMMANDS
@@ -386,7 +395,18 @@ export default function Home() {
             {/* ── Routines (gen3 zone sets) ── */}
             {robot.type === RobotType.NeatoGen3 && zoneOptions.length > 0 && isDocked(robot) && (
                 <>
-                    <SectionLabel badge={t('ui.new')}>{t('ui.routines')}</SectionLabel>
+                    <SectionLabel badge={t('ui.new')} right={currentRoutine && (
+                        <button type="button" className={`${styles.routineDelete} ${confirmRoutineDelete ? styles.routineDeleteConfirm : ''}`}
+                            onClick={() => {
+                                if (!confirmRoutineDelete) { setConfirmRoutineDelete(true); return }
+                                removeRoutine(currentRoutine.id)
+                                setSelectedZones([])
+                                setConfirmRoutineDelete(false)
+                            }}>
+                            <LuTrash2 size={14} aria-hidden="true" />
+                            {confirmRoutineDelete ? t('ui.confirm') : t('ui.deleteNamed', { name: currentRoutine.name })}
+                        </button>
+                    )}>{t('ui.routines')}</SectionLabel>
                     <div className={ui.grid3}>
                         {usableRoutines.map(r => (
                             <Chip key={r.id} label={r.name} sub={t('ui.zones', { count: r.zones.length })}

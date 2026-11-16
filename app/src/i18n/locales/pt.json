@@ -1,6 +1,10 @@
 {
     "String-version": "0",
     "ui": {
+        "deleteNamed": "Apagar «{{name}}»",
+        "addNoGo": "+ Linha proibida",
+        "noGoHint": "Uma linha proibida impede o robô de passar: desenhe-a no mapa sem a fechar.",
+        "confirm": "Confirmar",
         "days": "Dias",
         "time": "Hora",
         "saveSlots_one": "Guardar o horário",

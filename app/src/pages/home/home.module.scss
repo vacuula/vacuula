@@ -338,3 +338,29 @@
     background: $warn-bg;
     color: $warn-text;
 }
+
+.routineDelete {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 3.2rem;
+    padding: 0 1rem;
+    border-radius: 999px;
+    border: 1px solid $border;
+    background: $surface;
+    color: $err;
+    font: inherit;
+    font-size: 1.2rem;
+    font-weight: 700;
+    white-space: nowrap;
+    max-width: 22rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    @include pressable;
+}
+
+.routineDeleteConfirm {
+    background: $err;
+    border-color: $err;
+    color: #ffffff;
+}

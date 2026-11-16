@@ -341,3 +341,23 @@
     gap: 0.4rem;
     @include pressable;
 }
+
+.mapActions3 {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.2fr);
+
+    button {
+        white-space: nowrap;
+        padding: 0 0.8rem;
+        font-size: 1.4rem;
+    }
+}
+
+.mapActions .danger {
+    color: $err;
+}
+
+.mapActions .dangerConfirm {
+    background: $err;
+    border-color: $err;
+    color: #ffffff;
+}
