@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import styles from './map.module.scss'
 import { FaPlus, FaUndo } from 'react-icons/fa'
 import { PiBoundingBox } from 'react-icons/pi'
@@ -85,14 +86,28 @@ export default function MapCanvas({
 
     const onTouchEnd = (e: React.TouchEvent) => {
         canvasHandlers.onTouchEnd(e)
-        if (hasMoved || e.touches.length > 0) return
-        if (mode === 'boundary-edit') addPointAtCrosshair()
-        else if (e.changedTouches[0]) tapAt(e.changedTouches[0].clientX, e.changedTouches[0].clientY)
+        if (mode === 'boundary-edit' && !hasMoved) addPointAtCrosshair()
     }
 
-    const onMouseUp = (e: React.MouseEvent) => {
-        canvasHandlers.onMouseUp()
-        if (!hasMoved) tapAt(e.clientX, e.clientY)
+    // Taps are detected with pointer events: one event per finger or click,
+    // whatever the browser emulates afterwards, and a small slip of the finger
+    // still counts as a tap (the pan handlers flag any move at all).
+    const pointersDown = useRef(0)
+    const tapStart = useRef<{ x: number, y: number, t: number } | null>(null)
+    const onPointerDown = (e: React.PointerEvent) => {
+        pointersDown.current += 1
+        tapStart.current = pointersDown.current === 1 && e.button === 0 ? { x: e.clientX, y: e.clientY, t: Date.now() } : null
+    }
+    const onPointerUp = (e: React.PointerEvent) => {
+        pointersDown.current = Math.max(0, pointersDown.current - 1)
+        const start = tapStart.current
+        if (pointersDown.current > 0) { tapStart.current = null; return }
+        tapStart.current = null
+        if (start && Math.hypot(e.clientX - start.x, e.clientY - start.y) < 10 && Date.now() - start.t < 600) tapAt(e.clientX, e.clientY)
+    }
+    const onPointerCancel = () => {
+        pointersDown.current = 0
+        tapStart.current = null
     }
 
     return (
@@ -102,7 +117,10 @@ export default function MapCanvas({
                 className={styles.canvas}
                 onMouseDown={canvasHandlers.onMouseDown}
                 onMouseMove={canvasHandlers.onMouseMove}
-                onMouseUp={onMouseUp}
+                onMouseUp={canvasHandlers.onMouseUp}
+                onPointerDown={onPointerDown}
+                onPointerUp={onPointerUp}
+                onPointerCancel={onPointerCancel}
                 onMouseLeave={canvasHandlers.onMouseLeave}
                 onWheel={canvasHandlers.onWheel}
                 onTouchStart={canvasHandlers.onTouchStart}
