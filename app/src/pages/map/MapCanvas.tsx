@@ -20,6 +20,8 @@ interface MapCanvasProps {
     closedAsPolygon: boolean
     setClosedAsPolygon: UseState<boolean>
     setDrawerOpen: (open: boolean) => void
+    /** false while drawing a no-go line: the "close as polygon" button is hidden */
+    allowPolygon?: boolean
 }
 
 // Owns everything that genuinely can't exist without a selected map: the hook, the
@@ -35,7 +37,8 @@ export default function MapCanvas({
     setCurrentLinePoints,
     closedAsPolygon,
     setClosedAsPolygon,
-    setDrawerOpen
+    setDrawerOpen,
+    allowPolygon = true
 }: MapCanvasProps) {
     const { canvasRef, mapSize, zoom, offset, isDragging, hasMoved, canvasHandlers } = useMap({
         mapId,
@@ -102,9 +105,11 @@ export default function MapCanvas({
                     <div onClick={addPointAtCrosshair} className={`${styles.add} ${closedAsPolygon ? styles.disabled : ''}`}>
                         <FaPlus size={40} color="var(--text)" />
                     </div>
-                    <div onClick={closeAsPolygon} className={`${styles.closePolygon} ${((currentLinePoints.length > 2) && !closedAsPolygon) ? '' : styles.disabled}`}>
-                        <PiBoundingBox size={20} color="var(--text)" />
-                    </div>
+                    {allowPolygon && (
+                        <div onClick={closeAsPolygon} className={`${styles.closePolygon} ${((currentLinePoints.length > 2) && !closedAsPolygon) ? '' : styles.disabled}`}>
+                            <PiBoundingBox size={20} color="var(--text)" />
+                        </div>
+                    )}
                 </div>
             )}
         </>
