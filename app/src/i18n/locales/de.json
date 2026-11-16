@@ -1,6 +1,12 @@
 {
     "String-version": "3",
     "ui": {
+        "mapSentReconnect": "Karte gesendet. Der Roboter übernimmt sie und verbindet sich neu (etwa 1 Minute).",
+        "saveBeforeClean": "Speichere die Karte vor dem Reinigen: der Roboter kennt deine Änderungen noch nicht.",
+        "saved": "Gespeichert",
+        "saving": "Senden…",
+        "saveRetry": "Erneut",
+        "unsavedLeave": "Änderungen an der Karte sind nicht gespeichert. Verwerfen?",
         "deleteNamed": "„{{name}}“ löschen",
         "addNoGo": "+ Sperrlinie",
         "noGoHint": "Eine Sperrlinie hält den Roboter auf: zeichne sie auf der Karte, ohne sie zu schließen.",

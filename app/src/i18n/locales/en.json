@@ -1,6 +1,12 @@
 {
     "String-version": "4",
     "ui": {
+        "mapSentReconnect": "Map sent. The robot applies it and reconnects (about 1 minute).",
+        "saveBeforeClean": "Save the map before cleaning: the robot does not know your changes yet.",
+        "saved": "Saved",
+        "saving": "Sending…",
+        "saveRetry": "Retry",
+        "unsavedLeave": "Map changes are not saved. Discard them?",
         "deleteNamed": "Delete “{{name}}”",
         "addNoGo": "+ No-go line",
         "noGoHint": "A no-go line keeps the robot from crossing: draw it on the map without closing it.",

@@ -78,3 +78,7 @@
     border-radius: 50%;
     @include pressable;
 }
+.headerAction {
+    position: absolute;
+    right: 1.6rem;
+}
