@@ -342,7 +342,10 @@
     display: flex;
     align-items: center;
     gap: 0.4rem;
-    min-height: 3.2rem;
+    height: 3.2rem;
+    // Taller than the header line: negative margins keep the header (and
+    // everything below) from moving when the button appears.
+    margin: -1rem 0;
     padding: 0 1rem;
     border-radius: 999px;
     border: 1px solid $border;
