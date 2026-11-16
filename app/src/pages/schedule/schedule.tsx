@@ -137,6 +137,27 @@ export default () => {
                 onOpenChange={setDrawerOpen}
                 openHeightPercent={88}
                 title={t('ui.newSlotTitle')}
+                showBackButton
+                onBackButtonClick={() => setDrawerOpen(false)}
+                footer={<>
+                    {formError && <div className={styles.formError} role="alert">{formError}</div>}
+
+                    <button type="button" className={ui.primary} onClick={() => {
+                        if (newDays.length === 0) { setFormError(t('ui.pickDay')); return }
+                        const zones: Partial<ScheduleEvent> = newZones.length > 1 ? { boundaryIds: newZones } : newZones.length === 1 ? { boundaryId: newZones[0] } : {}
+                        const added: ScheduleEvent[] = newDays.map(day => ({ day, startTime: newTime, mode: newMode, ...zones }))
+                        GEN3_COMMANDS.setSchedule(robot.serial, [...added, ...schedule.events]).then(res => {
+                            if ((res.data as { result?: string })?.result && (res.data as { result?: string }).result !== 'ok') {
+                                setFormError(t('ui.scheduleSaveFailed'))
+                                return
+                            }
+                            setDrawerOpen(false)
+                            setNewDays([]); setNewZones([]); setFormError(undefined)
+                        }).catch(() => setFormError(t('ui.scheduleSaveFailed'))).finally(() => getSchedule())
+                    }}>
+                        {t('ui.saveSlots', { count: Math.max(newDays.length, 1) })}
+                    </button>
+                </>}
             >
                 <div className={ui.drawerBody}>
                     <SectionLabel>{t('ui.days')}</SectionLabel>
@@ -176,24 +197,6 @@ export default () => {
                             <div className={ui.info}>{newZones.length > 1 ? t('ui.scheduleMultiTest') : t('ui.wholeHouseHint')}</div>
                         </>
                     )}
-
-                    {formError && <div className={styles.formError} role="alert">{formError}</div>}
-
-                    <button type="button" className={ui.primary} onClick={() => {
-                        if (newDays.length === 0) { setFormError(t('ui.pickDay')); return }
-                        const zones: Partial<ScheduleEvent> = newZones.length > 1 ? { boundaryIds: newZones } : newZones.length === 1 ? { boundaryId: newZones[0] } : {}
-                        const added: ScheduleEvent[] = newDays.map(day => ({ day, startTime: newTime, mode: newMode, ...zones }))
-                        GEN3_COMMANDS.setSchedule(robot.serial, [...added, ...schedule.events]).then(res => {
-                            if ((res.data as { result?: string })?.result && (res.data as { result?: string }).result !== 'ok') {
-                                setFormError(t('ui.scheduleSaveFailed'))
-                                return
-                            }
-                            setDrawerOpen(false)
-                            setNewDays([]); setNewZones([]); setFormError(undefined)
-                        }).catch(() => setFormError(t('ui.scheduleSaveFailed'))).finally(() => getSchedule())
-                    }}>
-                        {t('ui.saveSlots', { count: Math.max(newDays.length, 1) })}
-                    </button>
                 </div>
             </Drawer>
 

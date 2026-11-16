@@ -68,6 +68,22 @@
     overflow-y: auto;
 }
 
+// Footer: stays visible while the content above it scrolls
+.drawerFooter {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    padding: 1.2rem 1.6rem calc(1.2rem + env(safe-area-inset-bottom));
+    border-top: 1px solid $border;
+    background: $bg;
+}
+
+// The content's bottom padding is taken by the footer when there is one
+.drawerContent:has(+ .drawerFooter) {
+    padding-bottom: 1.6rem;
+}
+
 
 .handleIcon {
     color: $text-primary;
