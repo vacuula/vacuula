@@ -194,6 +194,8 @@ export default function Home() {
     const knownZones = new Set(zoneOptions.map(o => o.value))
     const usableRoutines = robot.type === RobotType.NeatoGen3 ? routines.filter(r => r.zones.every(z => knownZones.has(z))) : []
     const currentRoutine = usableRoutines.find(r => sameZones(r.zones, selectedZones))
+    // Unnamed routines are called after their zones, in cleaning order.
+    const defaultRoutineName = selectedZones.map(v => zoneOptions.find(o => o.value === v)?.label ?? '').filter(Boolean).join(' + ')
 
     // Deleting a routine takes a second tap within a few seconds.
     const [confirmRoutineDelete, setConfirmRoutineDelete] = useState(false)
@@ -395,7 +397,7 @@ export default function Home() {
             {/* ── Routines (gen3 zone sets) ── */}
             {robot.type === RobotType.NeatoGen3 && zoneOptions.length > 0 && isDocked(robot) && (
                 <>
-                    <SectionLabel badge={t('ui.new')} right={currentRoutine && (
+                    <SectionLabel right={currentRoutine && (
                         <button type="button" className={`${styles.routineDelete} ${confirmRoutineDelete ? styles.routineDeleteConfirm : ''}`}
                             onClick={() => {
                                 if (!confirmRoutineDelete) { setConfirmRoutineDelete(true); return }
@@ -437,7 +439,7 @@ export default function Home() {
                         setTimeout(() => setBellAnimating(false), BELL_MS)
                     }}
                 />
-                <Chip icon={categoryIcon} label={categoryLabel} sub={zoneCount ? t('ui.zones', { count: zoneCount }) : undefined}
+                <Chip icon={categoryIcon} label={categoryLabel} sub={zoneCount ? t('ui.zones', { count: zoneCount }) : '\u00a0'}
                     ariaLabel={t('home.btnExplain.mode')} onClick={() => setCategoryDrawerOpen(true)} />
                 <Chip icon={nav.icon} label={nav.label} ariaLabel={t('home.btnExplain.navigation')} onClick={() => setNav(cycle(navOptions, navValue))} />
                 <Chip icon={power.icon} label={power.label} ariaLabel={t('home.btnExplain.cleaning')} onClick={() => setPower(cycle(powerOptions, powerValue))} />
@@ -510,10 +512,10 @@ export default function Home() {
                                 <button type="button" className={ui.ghost} onClick={() => removeRoutine(currentRoutine.id)}>{t('ui.deleteRoutine')} · {currentRoutine.name}</button>
                             ) : (
                                 <div style={{ display: 'flex', gap: '0.8rem' }}>
-                                    <input className={ui.textInput} placeholder={t('ui.routineName')} aria-label={t('ui.routineName')}
+                                    <input className={ui.textInput} placeholder={defaultRoutineName} aria-label={t('ui.routineName')}
                                         value={routineName} onChange={e => setRoutineName(e.target.value)} />
-                                    <button type="button" className={ui.ghost} disabled={!routineName.trim()} onClick={() => {
-                                        saveRoutine(routineName.trim(), selectedZones)
+                                    <button type="button" className={ui.ghost} onClick={() => {
+                                        saveRoutine(routineName.trim() || defaultRoutineName, selectedZones)
                                         setRoutineName('')
                                     }}>{t('ui.saveRoutine')}</button>
                                 </div>
