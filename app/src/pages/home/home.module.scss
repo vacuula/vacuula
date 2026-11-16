@@ -344,9 +344,6 @@
     align-items: center;
     gap: 0.4rem;
     height: 3.2rem;
-    // Taller than the header line: negative margins keep the header (and
-    // everything below) from moving when the button appears.
-    margin: -1rem 0;
     padding: 0 1rem;
     border-radius: 999px;
     border: 1px solid $border;
@@ -366,4 +363,18 @@
     background: $err;
     border-color: $err;
     color: #ffffff;
+}
+
+// The Routines header always reserves the delete button's height, so the
+// routines and buttons below never move when it appears.
+.routinesHead {
+    min-height: 3.6rem;
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.4rem;
+
+    > * {
+        flex: 1;
+        margin: 0;
+    }
 }
