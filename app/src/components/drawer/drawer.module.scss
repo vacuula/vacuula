@@ -11,7 +11,7 @@
     touch-action: none;
     display: flex;
     flex-direction: column;
-    height: 100%;
+    will-change: transform;
 }
 
 .drawerHandle {
