@@ -46,6 +46,16 @@ export default () => {
         setDrawerOpen(!!selectedCleaning);
     }, [selectedCleaning])
 
+    // The run map is decoded and drawn only once the sheet has finished
+    // sliding up (0.4 s), so the opening animation stays smooth.
+    const [mapReady, setMapReady] = useState(false)
+    useEffect(() => {
+        setMapReady(false)
+        if (!drawerOpen) return
+        const timer = setTimeout(() => setMapReady(true), 450)
+        return () => clearTimeout(timer)
+    }, [drawerOpen, selectedCleaning?.id])
+
     if (!cleanings) return
 
     const runs = cleanings as AnyRun[]
@@ -132,7 +142,9 @@ export default () => {
 
                     <hr style={{ width: '100%' }} />
 
-                    <Map mapId={selectedCleaning?.id || ''} runId={selectedCleaning?.id || ''} />
+                    {mapReady
+                        ? <Map mapId={selectedCleaning?.id || ''} runId={selectedCleaning?.id || ''} />
+                        : <div className={styles.mapPlaceholder} />}
 
                     {/* TODO: Explain the differnet colors meaning */}
 
