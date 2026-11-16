@@ -17,6 +17,8 @@ interface DrawerProps {
     onBackButtonClick?: () => void
     /** Shown on the right of the title while the sheet is open (e.g. a Save button). */
     headerAction?: React.ReactNode
+    /** Pinned under the scrolling content while the sheet is open (e.g. the form's Save button). */
+    footer?: React.ReactNode
 }
 
 const HANDLE_HEIGHT = 60
@@ -155,6 +157,12 @@ export default function Drawer(props: DrawerProps) {
             {(drawerHeight > 100 || contentMounted) && (
                 <div className={styles.drawerContent}>
                     {props.children}
+                </div>
+            )}
+
+            {props.footer && (drawerHeight > 100 || contentMounted) && (
+                <div className={styles.drawerFooter}>
+                    {props.footer}
                 </div>
             )}
         </div>
