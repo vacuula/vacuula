@@ -29,7 +29,6 @@ export default () => {
     const [schedule, setSchedule] = useState<GetSchedule>()
     const [drawerOpen, setDrawerOpen] = useState(false)
 
-    const offset = serverInfo.utc_offset_minutes ?? 0
     const { data: persistentMaps } = usePersistentMaps()
 
     useEffect(() => {

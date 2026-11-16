@@ -33,9 +33,10 @@ const basicStateIcons: Record<BasicState, IconType> = {
     [BasicState.SUSPENDED_EXPLORATION]: IoMdPause,
 }
 
-export function isDocked(robot: Robot) {
+export function isDocked(robot: Robot): boolean {
     if (robot.type === RobotType.NeatoGen3) return robot.details.isDocked;
     if (robot.type === RobotType.NeatoGen4) return robot.details.is_docked;
+    return false;
 }
 
 function isCharging(robot: Robot) {
@@ -64,8 +65,8 @@ export function RobotStatusBadges() {
     const { robot } = useRobot()
     return (
         <div className={styles.status}>
-            {robot.error && <MdError size={16} className={styles.iconErr} />}
-            {robot.alert && <MdWarning size={16} className={styles.iconWarn} />}
+            {'error' in robot && robot.error && <MdError size={16} className={styles.iconErr} />}
+            {'alert' in robot && robot.alert && <MdWarning size={16} className={styles.iconWarn} />}
             {isDocked(robot) && (
                 <TbChargingPile size={15} className={styles.iconDocked} title={t('topbar.docked')} />
             )}

@@ -1,5 +1,5 @@
-import type { RobotDay } from "../../types/api"
-import type { CleaningMode } from "../../types/state"
+import type { RobotDay } from "../../types/neato/gen3/api"
+import type { CleaningMode } from "../../types/neato/gen3/state"
 
 export interface ScheduleEvent {
     mode: CleaningMode
