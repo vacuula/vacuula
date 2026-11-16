@@ -10,7 +10,7 @@ import { SiBuymeacoffee, SiKofi } from 'react-icons/si'
 import { GEN3_COMMANDS } from '../../http/gen3'
 import { useTranslation } from 'react-i18next'
 import { APP_LANGUAGES, DEFAULT_LANGUAGE } from '../../i18n/languages'
-import { THEME_MODES, useTheme, type ThemeMode } from '../../theme'
+import { STYLES, THEME_MODES, useTheme, type ThemeMode } from '../../theme'
 import { UNITS, useUnits, type Units } from '../../units'
 import { MASCOTS, useMascot } from '../../mascot'
 import { GrCertificate } from 'react-icons/gr'
@@ -22,7 +22,7 @@ import { BASE_PATH } from '../../http'
 
 export default () => {
     const { t, i18n } = useTranslation()
-    const { theme, setTheme } = useTheme()
+    const { theme, setTheme, style, setStyle } = useTheme()
     const { units, setUnits } = useUnits()
     const { mascot, setMascot } = useMascot()
 
@@ -96,6 +96,13 @@ export default () => {
                     options={THEME_MODES.map(mode => ({ value: mode, label: t(`settings.theme_${mode}`) }))}
                     value={theme}
                     onChange={(mode) => setTheme(mode as ThemeMode)}
+                />
+                <Input
+                    type="dropdown"
+                    label={t('settings.style')}
+                    options={STYLES.map(s => ({ value: s.id, label: t(`settings.style_${s.id}`) }))}
+                    value={style}
+                    onChange={setStyle}
                 />
                 <Input
                     type="dropdown"

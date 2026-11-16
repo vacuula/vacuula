@@ -191,6 +191,8 @@
         "appSettings": "App settings",
         "appLanguage": "App language",
         "theme": "Theme",
+        "style": "Style",
+        "style_menthe": "Mint",
         "theme_dark": "Dark",
         "theme_soft": "Dark (soft)",
         "theme_light": "Light",

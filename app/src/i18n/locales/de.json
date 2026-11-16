@@ -189,6 +189,8 @@
         "appSettings": "App-Einstellung",
         "appLanguage": "App-Sprache",
         "theme": "Theme",
+        "style": "Stil",
+        "style_menthe": "Minze",
         "theme_dark": "Dunkel",
         "theme_soft": "Dunkel (light)",
         "theme_light": "Hell",
