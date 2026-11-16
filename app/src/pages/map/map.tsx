@@ -25,6 +25,8 @@ import ColorPicker from '../../components/colorPicker/ColorPicker'
 import { isDocked } from '../../components/topbar/robotInfo'
 import { fetchGen3MapBoundaries } from '../../loaders/gen3Boundaries'
 import { getGen3CleaningMode, getGen3NavigationMode, getGen4CleaningMode, getGen4NavigationMode } from '../../utils/modes'
+import { LuPencil, LuPlay } from 'react-icons/lu'
+import { Chip, ListRow, SectionLabel, ui } from '../../components/ui/ui'
 
 
 export default () => {
@@ -263,17 +265,25 @@ export default () => {
         }
     }
 
+    // Zones picked in the list, in cleaning order (gen3 takes up to 16 of one map).
+    const [selectedZones, setSelectedZones] = useState<string[]>([])
+    useEffect(() => setSelectedZones([]), [persistentMap])
+    const toggleZone = (id: string) => setSelectedZones(prev =>
+        prev.includes(id) ? prev.filter(z => z !== id) : prev.length >= 16 ? prev : [...prev, id])
+
     // TODO: user should be able to customize what modes etc
-    const cleanZone = async (zone: Zone) => {
-        if (!persistentMap) return
+    const cleanZones = async (zoneIds: string[]) => {
+        if (!persistentMap || zoneIds.length === 0) return
         if (robot.type === RobotType.NeatoGen3) {
-            GEN3_COMMANDS.startCleaningZone(robot.serial, persistentMap, zone.id, getGen3CleaningMode(), getGen3NavigationMode())
+            if (zoneIds.length === 1) GEN3_COMMANDS.startCleaningZone(robot.serial, persistentMap, zoneIds[0], getGen3CleaningMode(), getGen3NavigationMode())
+            else GEN3_COMMANDS.startCleaningZones(robot.serial, persistentMap, zoneIds, getGen3CleaningMode(), getGen3NavigationMode())
             return;
         }
         const promotedFloorplan = await getPromotedFloorplan();
         if (!promotedFloorplan) return // TODO: ERROR (will do when i do gen3)
-        GEN4_COMMANDS.startCleaning(robot.serial, getGen4CleaningMode(), getGen4NavigationMode(), promotedFloorplan.id, true, [zone.id])
+        GEN4_COMMANDS.startCleaning(robot.serial, getGen4CleaningMode(), getGen4NavigationMode(), promotedFloorplan.id, true, zoneIds)
     }
+    const cleanZone = (zone: Zone) => cleanZones([zone.id])
 
     return (
         <div className={styles.container}>
@@ -305,7 +315,7 @@ export default () => {
                 showBackButton={['map-edit', 'boundaries', 'boundary-info'].includes(mode)}
                 onBackButtonClick={handleBackBtn}
                 onOpenChange={setDrawerOpen}
-                openHeightPercent={mode === 'boundary-edit' ? 60 : mode === 'boundary-info' ? 30 : 70}
+                openHeightPercent={mode === 'boundary-edit' ? 60 : mode === 'boundary-info' ? 30 : mode === 'boundaries' ? 58 : 70}
                 title={getTitle()}
             >
                 {mode === 'maps' && (
@@ -411,46 +421,69 @@ export default () => {
                     />
                 )}
 
-                {mode === 'boundaries' && (
-                    <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end' }}>
-                            {robot.type === RobotType.NeatoGen4 ? (
-                                <PromoteDemoteBtn robot={robot} map={persistentMaps?.find(p => p.id === persistentMap) as Floorplan} onSuccess={updatePersistentMaps} />
-                            ) : (
-                                <span>{(persistentMaps?.find(p => p.id === persistentMap) as Neato.Gen3.PersistentMap)?.enabled ? t('common.enabled') : t('common.disabled')}</span>
+                {mode === 'boundaries' && (() => {
+                    const map = persistentMaps?.find(p => p.id === persistentMap)
+                    const editable = map && 'promoted' in map ? (map as Floorplan).promoted : true
+                    const cleaningZones = boundaries.filter(b => b.type === 'polygon' && ('function' in b ? b.function === 'cleaning' : true)) as Zone[]
+                    const others = boundaries.filter(b => !cleaningZones.includes(b as Zone))
+                    const enabledMaps = (persistentMaps ?? []).filter(m => 'enabled' in m ? m.enabled : true)
+                    return (
+                        <div className={ui.drawerBody}>
+                            <div className={styles.mapTabs}>
+                                {enabledMaps.map(m => (
+                                    <button key={m.id} type="button" className={`${styles.mapTab} ${m.id === persistentMap ? styles.mapTabOn : ''}`}
+                                        onClick={() => setPersistentMap(m.id)}>{m.name}</button>
+                                ))}
+                                <span style={{ flex: 1 }} />
+                                {robot.type === RobotType.NeatoGen4
+                                    ? <PromoteDemoteBtn robot={robot} map={map as Floorplan} onSuccess={updatePersistentMaps} />
+                                    : <span className={ui.small}>{(map as Neato.Gen3.PersistentMap)?.enabled ? t('common.enabled') : t('common.disabled')}</span>}
+                            </div>
+
+                            {editable && (
+                                <>
+                                    <SectionLabel badge={robot.type === RobotType.NeatoGen3 ? t('ui.multizone') : undefined}>{t('ui.zonesOrder')}</SectionLabel>
+                                    <div className={ui.grid2}>
+                                        {cleaningZones.map(zone => {
+                                            const order = selectedZones.indexOf(zone.id) + 1
+                                            return <Chip key={zone.id} row label={zone.name} order={order || null} active={order > 0} onClick={() => toggleZone(zone.id)} />
+                                        })}
+                                        <Chip row dashed label={t('ui.addZone')} onClick={() => openEdit(uuidv4())} />
+                                    </div>
+                                </>
                             )}
 
-                            <Button text={t('map.editMapDetails')} style='primary' onClick={() => setMode('map-edit')} />
-                        </div>
-                        <hr />
-                        <div className={styles.buttonContainer}>
-                            <Button text={t('map.addFeature')} style='primary' onClick={() => openEdit(uuidv4())} />
-                        </div>
-
-                        <div className={styles.featureList}>
-                            {boundaries.map((item, i) => (
-                                <div key={i} className={styles.item} style={{ background: withAlpha(item.color, 0.13) }} onClick={() => openInfo(item.id)}>
-                                    <div className={styles.info}>
-                                        <span>{item.name}</span>
-                                        <span className={styles.type} style={{ color: normalizeHex(item.color) ?? undefined }}>
-                                            {item.type === 'polygon' ?
-                                                'function' in item ? (item.function === 'cleaning' ? t('map.cleaningZone') : t('map.noGoZone'))
-                                                    : t('map.zone') : t('map.noGoLine')
-                                            }
-                                        </span>
+                            {others.length > 0 && (
+                                <>
+                                    <SectionLabel>{t('ui.otherBoundaries')}</SectionLabel>
+                                    <div className={ui.list}>
+                                        {others.map(item => (
+                                            <ListRow key={item.id}
+                                                label={<span style={{ display: 'flex', flexDirection: 'column' }}>
+                                                    <span>{item.name || (item.type === 'polygon' ? t('map.noGoZone') : t('map.noGoLine'))}</span>
+                                                    {item.name && <span className={ui.small} style={{ color: normalizeHex(item.color) ?? undefined }}>
+                                                        {item.type === 'polygon' ? t('map.noGoZone') : t('map.noGoLine')}
+                                                    </span>}
+                                                </span>}
+                                                right={editable ? <Input type="switch" skipSection={true} value={item.enabled} onChange={() => toggleNoGo(item)} /> : undefined}
+                                                onClick={() => openInfo(item.id)} />
+                                        ))}
                                     </div>
-                                    {('promoted' in (persistentMaps?.find(p => p.id === persistentMap) as Floorplan) ? (persistentMaps?.find(p => p.id === persistentMap) as Floorplan).promoted : true) && (
-                                        <>
-                                            {(item.type === 'polyline' || item.function === 'nogo') && (<Input type="switch" skipSection={true} value={item.enabled} onChange={() => toggleNoGo(item)} />)}
-                                            {item.type === 'polygon' && ('function' in item ? item.function === 'cleaning' : true) && (<Button style='primary' disabled={!isDocked(robot)} text={t('map.cleanZone')} onClick={() => cleanZone(item)} />)}
-                                        </>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
+                                </>
+                            )}
 
-                    </div>
-                )}
+                            <div className={styles.mapActions}>
+                                <button type="button" className={ui.ghost} onClick={() => selectedZones.length === 1 ? openInfo(selectedZones[0]) : setMode('map-edit')}>
+                                    <LuPencil size={18} aria-hidden="true" />{t('ui.edit')}
+                                </button>
+                                <button type="button" className={ui.primary} disabled={!isDocked(robot) || selectedZones.length === 0 || !editable}
+                                    onClick={() => cleanZones(selectedZones)}>
+                                    <LuPlay size={18} fill="currentColor" aria-hidden="true" />{selectedZones.length ? t('ui.cleanZones', { count: selectedZones.length }) : t('ui.cleanTitle')}
+                                </button>
+                            </div>
+                        </div>
+                    )
+                })()}
                 {robot.type === RobotType.NeatoGen4 && ['boundaries', 'maps'].includes(mode) && (
                     <span style={{ width: '90%', display: 'flex', margin: 'auto auto 0 auto', paddingTop: '1rem', opacity: 0.5, textAlign: 'center', fontSize: '1.3rem' }}>
                         {t('map.gen4UpdateBugHint')}

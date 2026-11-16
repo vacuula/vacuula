@@ -1,171 +1,162 @@
-import styles from './settings.module.scss'
 import { useEffect, useRef, useState } from 'react'
 import Input from '../../components/input/input'
 import { Neato, RobotType } from '../../types'
 import { GEN4_COMMANDS } from '../../http/gen4'
 import { useRobot } from '../../context/useRobot'
 import Button from '../../components/button/button'
-import { FaDiscord, FaGithub } from 'react-icons/fa'
-import { SiBuymeacoffee, SiKofi } from 'react-icons/si'
 import { GEN3_COMMANDS } from '../../http/gen3'
 import { useTranslation } from 'react-i18next'
 import { APP_LANGUAGES, DEFAULT_LANGUAGE } from '../../i18n/languages'
 import { STYLES, THEME_MODES, useTheme, type ThemeMode } from '../../theme'
 import { UNITS, useUnits, type Units } from '../../units'
 import { MASCOTS, useMascot } from '../../mascot'
-import { GrCertificate } from 'react-icons/gr'
-import { VscFeedback } from 'react-icons/vsc'
-import { FaFileLines } from 'react-icons/fa6'
 import type { UseState } from '../../components/map/types'
 import { loadSelectedMapShape, saveSelectedMapShape, MAPSHAPES } from './mapshapes'
-import { BASE_PATH } from '../../http'
+import { BASE_PATH, Http } from '../../http'
+import { LuPalette } from 'react-icons/lu'
+import { ListRow, PageTitle, PickerDrawer, SectionLabel, StatTile, ui } from '../../components/ui/ui'
+
+// One sheet serves every "pick a value" row of the page.
+interface Picker {
+    title: string
+    options: { value: any, label: string }[]
+    value: any
+    onChange: (value: any) => void
+}
+type OpenPicker = (picker: Picker) => void
 
 export default () => {
     const { t, i18n } = useTranslation()
     const { theme, setTheme, style, setStyle } = useTheme()
     const { units, setUnits } = useUnits()
     const { mascot, setMascot } = useMascot()
+    const { robot, serverInfo } = useRobot()
 
-    const { robot, updateRobotName, serverInfo } = useRobot()
-
-    const [robotName, setRobotName] = useState(robot.name)
     const [selectedMapShape, setSelectedMapShape] = useState(loadSelectedMapShape())
-
-    useEffect(() => {
-        setRobotName(robot.name)
-    }, [robot.name])
-
-    useEffect(() => {
-        if (!robotName) return; // robot needs a name
-        if (robotName === robot.name) return
-
-        const timer = setTimeout(() => {
-            updateRobotName(robotName)
-        }, 500)
-
-        return () => clearTimeout(timer)
-    }, [robotName])
+    const [picker, setPicker] = useState<Picker>()
+    const [pickerOpen, setPickerOpen] = useState(false)
+    const openPicker: OpenPicker = (p) => { setPicker(p); setPickerOpen(true) }
 
     useEffect(() => {
         saveSelectedMapShape(selectedMapShape)
     }, [selectedMapShape])
 
+    const themeOptions = THEME_MODES.map(mode => ({ value: mode, label: t(`settings.theme_${mode}`) }))
+    const styleOptions = STYLES.map(s => ({ value: s.id, label: t(`settings.style_${s.id}`) }))
+    const languageOptions = APP_LANGUAGES.map(lang => ({ value: lang.code, label: lang.label }))
+    const unitOptions = UNITS.map(u => ({ value: u, label: t(`settings.units_${u}`) }))
+    const shapeOptions = MAPSHAPES.map(shape => ({ value: shape.value, label: t(shape.label) }))
+    const mascotOptions = MASCOTS.map(m => ({ value: m.id, label: t(`settings.mascot_${m.id}`) }))
+    const labelOf = (options: { value: any, label: string }[], value: any) => options.find(o => o.value === value)?.label ?? ''
+    const language = i18n.resolvedLanguage ?? DEFAULT_LANGUAGE
+
+    const open = (url: string) => () => window.open(url)
 
     return (
-        <div className={styles.container}>
+        <div className={ui.page}>
+            <PageTitle>{t('ui.settingsTitle')}</PageTitle>
 
-            <div className={styles.featureList}>
+            <RobotCard />
 
-                <Input
-                    type="text"
-                    label={t('common.name')}
-                    value={robotName}
-                    onChange={setRobotName}
-                    extraInfo={(
-                        <>
-                            <span>{t('settings.serial', { serial: 'label_serial' in robot ? robot.label_serial : robot.serial })}</span>
-                            {robot.type === RobotType.NeatoGen3 && <Gen3RobotDetails />}
-                        </>
-                    )}
-                />
+            <SectionLabel>{t('ui.robotSection')}</SectionLabel>
+            {robot.type === RobotType.NeatoGen4 && <Gen4RobotSettings openPicker={openPicker} />}
+            {robot.type === RobotType.NeatoGen3 && <Gen3RobotSettings openPicker={openPicker} />}
 
+            <SectionLabel>{t('ui.appSection')}</SectionLabel>
+            <div className={ui.list}>
+                <ListRow highlight icon={<LuPalette size={18} />} label={t('settings.style')} badge={t('ui.new')} value={labelOf(styleOptions, style)}
+                    onClick={() => openPicker({ title: t('settings.style'), options: styleOptions, value: style, onChange: setStyle })} />
+                <ListRow label={t('settings.theme')} value={labelOf(themeOptions, theme)}
+                    onClick={() => openPicker({ title: t('settings.theme'), options: themeOptions, value: theme, onChange: (m) => setTheme(m as ThemeMode) })} />
+                <ListRow label={t('settings.appLanguage')} value={labelOf(languageOptions, language)}
+                    onClick={() => openPicker({ title: t('settings.appLanguage'), options: languageOptions, value: language, onChange: (code) => i18n.changeLanguage(code) })} />
+                <ListRow label={t('settings.units')} value={labelOf(unitOptions, units)}
+                    onClick={() => openPicker({ title: t('settings.units'), options: unitOptions, value: units, onChange: (u) => setUnits(u as Units) })} />
+                <ListRow label={t('settings.mapShapeSelect')} value={labelOf(shapeOptions, selectedMapShape)}
+                    onClick={() => openPicker({ title: t('settings.mapShapeSelect'), options: shapeOptions, value: selectedMapShape, onChange: setSelectedMapShape })} />
+                <ListRow label={t('settings.mascot')} value={labelOf(mascotOptions, mascot.id)}
+                    onClick={() => openPicker({ title: t('settings.mascot'), options: mascotOptions, value: mascot.id, onChange: setMascot })} />
             </div>
 
-            <hr style={{ width: '95%' }} />
-
-            <div className={styles.featureList}>
-                <b>{t('settings.robotSettings')}</b>
-                {robot.type === RobotType.NeatoGen4 && <Gen4RobotSettings />}
-                {robot.type === RobotType.NeatoGen3 && <Gen3RobotSettings />}
+            <SectionLabel>{t('ui.aboutSection')}</SectionLabel>
+            <div className={ui.list}>
+                <ListRow label="Vacuula" value={serverInfo.version} />
+                <ListRow label={t('settings.downloadCert')} onClick={open(BASE_PATH + '/api/cert')} />
+                <ListRow label={t('settings.downloadLogs')} onClick={open(BASE_PATH + '/api/log/full?download=true')} />
+                <ListRow label={t('settings.giveFeedback')} onClick={open('https://feedback.vacuula.phma.dev/')} />
+                <ListRow label="GitHub" onClick={open('https://github.com/vacuula')} />
+                <ListRow label="Discord" onClick={open('https://discord.gg/PAgwhWvyD8')} />
+                <ListRow label="Ko-fi" onClick={open('https://ko-fi.com/V7V61PBIY6')} />
+                <ListRow label="Buy Me a Coffee" onClick={open('https://www.buymeacoffee.com/philip2809')} />
             </div>
+            <div className={ui.info}>{t('settings.comingSoon')}</div>
 
-            <hr style={{ width: '95%' }} />
-
-            <div className={styles.featureList}>
-                <b>{t('settings.appSettings')}</b>
-                <Input
-                    type="dropdown"
-                    label={t('settings.appLanguage')}
-                    options={APP_LANGUAGES.map(lang => ({ value: lang.code, label: lang.label }))}
-                    value={i18n.resolvedLanguage ?? DEFAULT_LANGUAGE}
-                    onChange={(code) => i18n.changeLanguage(code)}
-                />
-                <Input
-                    type="dropdown"
-                    label={t('settings.theme')}
-                    options={THEME_MODES.map(mode => ({ value: mode, label: t(`settings.theme_${mode}`) }))}
-                    value={theme}
-                    onChange={(mode) => setTheme(mode as ThemeMode)}
-                />
-                <Input
-                    type="dropdown"
-                    label={t('settings.style')}
-                    options={STYLES.map(s => ({ value: s.id, label: t(`settings.style_${s.id}`) }))}
-                    value={style}
-                    onChange={setStyle}
-                />
-                <Input
-                    type="dropdown"
-                    label={t('settings.mapShapeSelect')}
-                    options={MAPSHAPES.map(shape => ({ value: shape.value, label: t(shape.label) }))}
-                    value={selectedMapShape}
-                    onChange={setSelectedMapShape}
-                />
-                <Input
-                    type="dropdown"
-                    label={t('settings.units')}
-                    options={UNITS.map(u => ({ value: u, label: t(`settings.units_${u}`) }))}
-                    value={units}
-                    onChange={(u) => setUnits(u as Units)}
-                />
-                <Input
-                    type="dropdown"
-                    label={t('settings.mascot')}
-                    options={MASCOTS.map(m => ({ value: m.id, label: t(`settings.mascot_${m.id}`) }))}
-                    value={mascot.id}
-                    onChange={(id) => setMascot(id)}
-                />
-            </div>
-
-            <hr style={{ width: '95%' }} />
-
-            <div className={styles.featureList}>
-
-                <Input
-                    type="custom"
-                    label="Vacuula"
-                    extraInfo={(
-                        <>
-                            <span>Vacuula {serverInfo.version}</span>
-                            <br />
-                            <span>{t('settings.comingSoon')}</span>
-                        </>
-                    )}>
-                    <div className={styles.vacuulaInfo}>
-                        <Button icon={<FaGithub size={20} />} text='Github' style='secondary' onClick={() => window.open('https://github.com/vacuula')} />
-                        <Button icon={<FaDiscord size={20} />} text='Discord' style='secondary' onClick={() => window.open('https://discord.gg/PAgwhWvyD8')} />
-
-                        <Button icon={<SiKofi size={20} />} text='Ko-fi' style='secondary' onClick={() => window.open('https://ko-fi.com/V7V61PBIY6')} />
-                        <Button icon={<SiBuymeacoffee size={20} />} text='Buy Me a Coffee' style='secondary' onClick={() => window.open('https://www.buymeacoffee.com/philip2809')} />
-
-                        <Button icon={<GrCertificate size={20} />} text={t('settings.downloadCert')} style='secondary' onClick={() => window.open(BASE_PATH + "/api/cert")} />
-                        <Button icon={<VscFeedback size={20} />} text={t('settings.giveFeedback')} style='secondary' onClick={() => window.open("https://feedback.vacuula.phma.dev/")} />
-
-                        <Button icon={<FaFileLines size={20} />} text={t('settings.downloadLogs')} style='secondary' onClick={() => window.open(BASE_PATH + "/api/log/full?download=true")} />
-                    </div>
-                </Input>
-
-
-
-            </div>
+            {picker && (
+                <PickerDrawer open={pickerOpen} onOpenChange={setPickerOpen} title={picker.title}
+                    options={picker.options} value={picker.value} onChange={picker.onChange} />
+            )}
         </div>
-
     )
 }
 
+/** Name (renamable), model and age of the robot, and its wear counters (gen3). */
+const RobotCard = () => {
+    const { t } = useTranslation()
+    const { robot, updateRobotName } = useRobot()
+    const [editing, setEditing] = useState(false)
+    const [name, setName] = useState(robot.name)
+    const [general, setGeneral] = useState<Neato.Gen3.GetGeneralInfo>()
+    const [info, setInfo] = useState<{ runTime?: number, CumulativeCartridgeTimeInSecs?: number }>()
 
+    useEffect(() => setName(robot.name), [robot.name])
 
-const Gen4RobotSettings = () => {
+    useEffect(() => {
+        if (robot.type !== RobotType.NeatoGen3) return
+        GEN3_COMMANDS.getGeneralInfo(robot.serial).then(res => setGeneral(res.data.data)).catch(() => undefined)
+        Http.sendCmd<{ data: { runTime?: number, CumulativeCartridgeTimeInSecs?: number } }>(robot.serial, { cmd: 'getRobotInfo' })
+            .then(res => setInfo(res.data.data)).catch(() => undefined)
+    }, [robot.serial])
+
+    const commit = () => {
+        const next = name.trim()
+        setEditing(false)
+        if (next && next !== robot.name) updateRobotName(next)
+        else setName(robot.name)
+    }
+
+    const born = robot.type === RobotType.NeatoGen3 ? manufacturingCodeToDate(robot.serial.split('-')[0])?.toLocaleDateString() : undefined
+    const hours = (seconds?: number) => seconds === undefined ? '…' : `${Math.round(seconds / 3600)} h`
+
+    return (
+        <div className={ui.card} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                {editing ? (
+                    <input className={ui.textInput} autoFocus value={name} aria-label={t('ui.robotName')}
+                        onChange={e => setName(e.target.value)} onBlur={commit}
+                        onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') { setName(robot.name); setEditing(false) } }} />
+                ) : (
+                    <div className={ui.grow}>
+                        <span className={ui.rowTitle} style={{ fontSize: '1.8rem' }}>{robot.name}</span>
+                        <span className={ui.muted}>
+                            {general ? general.model : ''}{general && born ? ' · ' : ''}{born ? t('ui.madeOn', { date: born }) : ''}
+                        </span>
+                    </div>
+                )}
+                {!editing && <button type="button" className={ui.ghost} style={{ minHeight: '3.8rem', fontSize: '1.3rem' }} onClick={() => setEditing(true)}>{t('ui.rename')}</button>}
+            </div>
+            {robot.type === RobotType.NeatoGen3 && (
+                <div className={ui.grid3}>
+                    <StatTile flat value={general?.battery.totalCharges ?? '…'} label={t('ui.batteryCycles')} />
+                    <StatTile flat value={hours(info?.runTime)} label={t('ui.runHours')} />
+                    <StatTile flat value={hours(info?.CumulativeCartridgeTimeInSecs)} label={t('ui.cartridgeHours')} />
+                </div>
+            )}
+            <span className={ui.small}>{t('settings.serial', { serial: 'label_serial' in robot ? robot.label_serial : robot.serial })}</span>
+        </div>
+    )
+}
+
+const Gen4RobotSettings = ({ openPicker }: { openPicker: OpenPicker }) => {
     const { t } = useTranslation()
     const { robot } = useRobot()
 
@@ -201,22 +192,18 @@ const Gen4RobotSettings = () => {
 
     return (
         <>
-            <div className={styles.item} style={{ background: 'var(--accent-soft)' }}>
-                <div className={styles.info}>
-                    <span>{t('settings.forceFloorplan')}</span>
-                </div>
-                <Input type="switch" skipSection={true} value={cleaningOptions.force_floorplan} onChange={(value) => {
-                    setSettings(Neato.Gen4.SettingsCleaningOptionsOperation.SET, { ...cleaningOptions, force_floorplan: value })
-                }} />
+            <div className={ui.list}>
+                <ListRow label={t('settings.forceFloorplan')} right={
+                    <Input type="switch" skipSection={true} value={cleaningOptions.force_floorplan} onChange={(value) => {
+                        setSettings(Neato.Gen4.SettingsCleaningOptionsOperation.SET, { ...cleaningOptions, force_floorplan: value })
+                    }} />} />
+                <ListRow label={t('settings.robotLanguage')} value={robotLanguage.language} onClick={() => openPicker({
+                    title: t('settings.robotLanguage'),
+                    options: robotLanguage.available_languages.map(lang => ({ value: lang, label: lang })),
+                    value: robotLanguage.language,
+                    onChange: (language) => setSettings(Neato.Gen4.SettingsRobotLanguageOperation.SET, { ...robotLanguage, language }),
+                })} />
             </div>
-
-            <Input
-                type="dropdown"
-                label={t('settings.robotLanguage')}
-                options={robotLanguage.available_languages.map(lang => ({ value: lang, label: lang }))}
-                value={robotLanguage.language}
-                onChange={(language) => setSettings(Neato.Gen4.SettingsRobotLanguageOperation.SET, { ...robotLanguage, language })}
-            />
 
             <Input
                 type="custom"
@@ -228,43 +215,12 @@ const Gen4RobotSettings = () => {
     )
 }
 
-const Gen3RobotDetails = () => {
-    const { t } = useTranslation()
-    const { robot } = useRobot()
-
-    const [robotGeneralInfo, setRobotGeneralInfo] = useState<Neato.Gen3.GetGeneralInfo>()
-
-    useEffect(() => {
-        GEN3_COMMANDS.getGeneralInfo(robot.serial).then(res => {
-            setRobotGeneralInfo(res.data.data)
-        })
-    }, []);
-
-    return (
-        <>
-            <br />
-            <span>{t('settings.birthday', { date: manufacturingCodeToDate(robot.serial.split('-')[0])?.toLocaleDateString() ?? '' })}</span>
-            { robotGeneralInfo && (
-                <>
-                <br />
-                <span>{t('settings.batteryCycles', { cycles: robotGeneralInfo.battery.totalCharges })}</span>
-                <br />
-                <span>{t('settings.robotModel', { model: robotGeneralInfo.model })}</span>
-                </>
-            )}
-        </>
-    )
-
-
-}
-
-const Gen3RobotSettings = () => {
+const Gen3RobotSettings = ({ openPicker }: { openPicker: OpenPicker }) => {
     const { t } = useTranslation()
     const { robot } = useRobot()
 
     const [preferences, setPreferences] = useState<Neato.Gen3.Preferences | undefined>(undefined)
     const isInitialLoad = useRef(true)
-
 
     useEffect(() => {
         getPreferences();
@@ -292,41 +248,30 @@ const Gen3RobotSettings = () => {
 
     if (!preferences) return // TODO: loading ui
 
+    const MONTH = 30 * 24 * 60 // reminder intervals are in minutes
+    const binOptions = [30, 60, 90, 120, 150].map(i => ({ value: i, label: t('ui.minutes', { n: i }) })) // 30-150 is ok
+    const monthOptions = (months: number[]) => months.map(i => ({ value: i * MONTH, label: t('ui.months', { n: i.toLocaleString() }) }))
+    const filterOptions = monthOptions([1, 1.5, 2, 2.5, 3]) // 43200-129600 is ok (1-3 month)
+    const brushOptions = monthOptions([4, 5, 6, 7, 8]) // 172800-345600 is ok (4-8 month)
+    const labelOf = (options: { value: number, label: string }[], value: number) => options.find(o => o.value === value)?.label ?? String(value)
+
     return (
-        <>
-            <div className={styles.item} style={{ background: 'var(--accent-soft)' }}>
-                <div className={styles.info}>
-                    <span>{t('settings.robotSounds')}</span>
-                </div>
-                <Input type="switch" skipSection={true} value={preferences.robotSounds} onChange={(robotSounds) => {
-                    updateForm(setPreferences, { robotSounds })
-                }} />
-            </div>
-
-            <Input
-                type="select"
-                label={t('settings.binReminder')}
-                options={[30, 60, 90, 120, 150].map(i => ({ value: i, label: i.toString() }))} // 30-150 is ok
-                value={preferences.dirtbinAlertReminderInterval}
-                onChange={(dirtbinAlertReminderInterval) => updateForm(setPreferences, { dirtbinAlertReminderInterval })}
-            />
-
-            <Input
-                type="select"
-                label={t('settings.filterReminder')}
-                options={[1, 1.5, 2, 2.5, 3].map(i => ({ value: (i * 30 * 24 * 60), label: i.toString() }))} // 43200-129600 is ok (1-3 month)
-                value={preferences.filterChangeReminderInterval}
-                onChange={(filterChangeReminderInterval) => updateForm(setPreferences, { filterChangeReminderInterval })}
-            />
-
-            <Input
-                type="select"
-                label={t('settings.brushReminder')}
-                options={[4, 5, 6, 7, 8].map(i => ({ value: (i * 30 * 24 * 60), label: i.toString() }))} // 172800-345600 is ok (4-8 month)
-                value={preferences.brushChangeReminderInterval}
-                onChange={(brushChangeReminderInterval) => updateForm(setPreferences, { brushChangeReminderInterval })}
-            />
-        </>
+        <div className={ui.list}>
+            <ListRow label={t('settings.robotSounds')} right={
+                <Input type="switch" skipSection={true} value={preferences.robotSounds} onChange={(robotSounds) => updateForm(setPreferences, { robotSounds })} />} />
+            <ListRow label={t('settings.binReminder')} value={labelOf(binOptions, preferences.dirtbinAlertReminderInterval)} onClick={() => openPicker({
+                title: t('settings.binReminder'), options: binOptions, value: preferences.dirtbinAlertReminderInterval,
+                onChange: (dirtbinAlertReminderInterval) => updateForm(setPreferences, { dirtbinAlertReminderInterval }),
+            })} />
+            <ListRow label={t('settings.filterReminder')} value={labelOf(filterOptions, preferences.filterChangeReminderInterval)} onClick={() => openPicker({
+                title: t('settings.filterReminder'), options: filterOptions, value: preferences.filterChangeReminderInterval,
+                onChange: (filterChangeReminderInterval) => updateForm(setPreferences, { filterChangeReminderInterval }),
+            })} />
+            <ListRow label={t('settings.brushReminder')} value={labelOf(brushOptions, preferences.brushChangeReminderInterval)} onClick={() => openPicker({
+                title: t('settings.brushReminder'), options: brushOptions, value: preferences.brushChangeReminderInterval,
+                onChange: (brushChangeReminderInterval) => updateForm(setPreferences, { brushChangeReminderInterval }),
+            })} />
+        </div>
     )
 }
 

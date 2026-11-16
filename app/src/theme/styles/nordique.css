@@ -24,6 +24,9 @@
   --nav-label-display: block;
   --nav-bg: var(--surface);
   --nav-border: 1px solid var(--border);
+  --radius-card: 1.4rem;
+  --radius-control: 1.2rem;
+  --card-shadow: var(--shadow-sm);
 }
 
 :root[data-style="nordique"] :is(button, input, select, textarea) {
