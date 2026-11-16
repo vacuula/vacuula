@@ -1,6 +1,7 @@
 import styles from './ui.module.scss'
 import Drawer from '../drawer/drawer'
 import { LuCheck, LuChevronRight } from 'react-icons/lu'
+import { useLongPress } from './useLongPress'
 
 // Building blocks of the redesigned screens. Kept small and presentational:
 // pages own their data and pass plain values and handlers in.
@@ -39,14 +40,29 @@ interface ChipProps {
     dashed?: boolean
     ariaLabel?: string
     onClick?: () => void
+    /** Zone colour: a dot (or the order badge) in that colour ties the chip to the map. */
+    color?: string
+    /** Edit mode: the chip shows a checkbox in this state instead of its order. */
+    checked?: boolean
+    /** Called after a long press (about half a second); the click that follows is ignored. */
+    onLongPress?: () => void
 }
 
 /** Square quick-action / selectable chip. `row` lays it out horizontally (zones). */
-export function Chip({ icon, label, sub, active, disabled, row, order, dashed, ariaLabel, onClick }: ChipProps) {
-    const cls = [styles.chip, row && styles.row, active && styles.active, dashed && styles.dashed].filter(Boolean).join(' ')
+export function Chip({ icon, label, sub, active, disabled, row, order, dashed, ariaLabel, onClick, color, checked, onLongPress }: ChipProps) {
+    const { consume, ...longPressHandlers } = useLongPress(onLongPress)
+    const cls = [styles.chip, row && styles.row, active && styles.active, dashed && styles.dashed, checked && styles.checkedChip].filter(Boolean).join(' ')
+    // A picked zone is outlined in its own colour, so the list matches the map.
+    const style = color && (active || checked) ? { borderColor: color, background: `color-mix(in srgb, ${color} 16%, transparent)` } : undefined
     return (
-        <button type="button" className={cls} disabled={disabled} aria-pressed={active} aria-label={ariaLabel} onClick={onClick}>
-            {order !== undefined && (order ? <span className={styles.order}>{order}</span> : <span className={styles.orderEmpty} />)}
+        <button type="button" className={cls} disabled={disabled} aria-pressed={checked === undefined ? active : checked} aria-label={ariaLabel}
+            style={style} {...longPressHandlers} onClick={() => { if (consume()) return; onClick?.() }}>
+            {checked !== undefined
+                ? <span className={`${styles.check} ${checked ? styles.checkOn : ''}`} aria-hidden="true">{checked && <LuCheck size={14} strokeWidth={3} />}</span>
+                : order !== undefined && (order
+                    ? <span className={styles.order} style={color ? { background: color, color: '#111513' } : undefined}>{order}</span>
+                    : color ? <span className={styles.colorDot} style={{ background: color }} /> : <span className={styles.orderEmpty} />)}
+            {checked !== undefined && color && <span className={styles.colorDotSmall} style={{ background: color }} />}
             {icon && <span className={styles.chipIcon}>{icon}</span>}
             <span>{label}</span>
             {sub && <span className={styles.chipSub}>{sub}</span>}

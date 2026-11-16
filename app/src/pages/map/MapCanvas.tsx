@@ -2,7 +2,7 @@ import styles from './map.module.scss'
 import { FaPlus, FaUndo } from 'react-icons/fa'
 import { PiBoundingBox } from 'react-icons/pi'
 import type { Point, UseState } from '../../components/map/types'
-import { getCrosshairWorldCoords } from '../../components/map/utils'
+import { getCrosshairWorldCoords, getWorldCoords } from '../../components/map/utils'
 import { useMap, type ExtraDrawFn } from '../../components/map/useMap'
 
 // Single source of truth for the page's mode union — map.tsx imports this rather
@@ -22,6 +22,8 @@ interface MapCanvasProps {
     setDrawerOpen: (open: boolean) => void
     /** false while drawing a no-go line: the "close as polygon" button is hidden */
     allowPolygon?: boolean
+    /** A tap (no drag) on the map outside drawing mode, in map coordinates (0..1). */
+    onTap?: (point: Point) => void
 }
 
 // Owns everything that genuinely can't exist without a selected map: the hook, the
@@ -38,7 +40,8 @@ export default function MapCanvas({
     closedAsPolygon,
     setClosedAsPolygon,
     setDrawerOpen,
-    allowPolygon = true
+    allowPolygon = true,
+    onTap
 }: MapCanvasProps) {
     const { canvasRef, mapSize, zoom, offset, isDragging, hasMoved, canvasHandlers } = useMap({
         mapId,
@@ -73,9 +76,23 @@ export default function MapCanvas({
         canvasHandlers.onTouchMove(e)
     }
 
+    const tapAt = (clientX: number, clientY: number) => {
+        const canvas = canvasRef.current
+        if (!onTap || !canvas || !mapSize || mode === 'boundary-edit') return
+        const rect = canvas.getBoundingClientRect()
+        onTap(getWorldCoords(clientX - rect.left, clientY - rect.top, offset, zoom, mapSize))
+    }
+
     const onTouchEnd = (e: React.TouchEvent) => {
         canvasHandlers.onTouchEnd(e)
-        if (mode === 'boundary-edit' && !hasMoved) addPointAtCrosshair()
+        if (hasMoved || e.touches.length > 0) return
+        if (mode === 'boundary-edit') addPointAtCrosshair()
+        else if (e.changedTouches[0]) tapAt(e.changedTouches[0].clientX, e.changedTouches[0].clientY)
+    }
+
+    const onMouseUp = (e: React.MouseEvent) => {
+        canvasHandlers.onMouseUp()
+        if (!hasMoved) tapAt(e.clientX, e.clientY)
     }
 
     return (
@@ -85,7 +102,7 @@ export default function MapCanvas({
                 className={styles.canvas}
                 onMouseDown={canvasHandlers.onMouseDown}
                 onMouseMove={canvasHandlers.onMouseMove}
-                onMouseUp={canvasHandlers.onMouseUp}
+                onMouseUp={onMouseUp}
                 onMouseLeave={canvasHandlers.onMouseLeave}
                 onWheel={canvasHandlers.onWheel}
                 onTouchStart={canvasHandlers.onTouchStart}
