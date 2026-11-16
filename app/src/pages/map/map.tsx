@@ -25,7 +25,7 @@ import ColorPicker from '../../components/colorPicker/ColorPicker'
 import { isDocked } from '../../components/topbar/robotInfo'
 import { fetchGen3MapBoundaries } from '../../loaders/gen3Boundaries'
 import { getGen3CleaningMode, getGen3NavigationMode, getGen4CleaningMode, getGen4NavigationMode } from '../../utils/modes'
-import { LuPencil, LuPlay } from 'react-icons/lu'
+import { LuPencil, LuPlay, LuTrash2 } from 'react-icons/lu'
 import { Chip, ListRow, SectionLabel, ui } from '../../components/ui/ui'
 
 
@@ -268,6 +268,15 @@ export default () => {
     // Zones picked in the list, in cleaning order (gen3 takes up to 16 of one map).
     const [selectedZones, setSelectedZones] = useState<string[]>([])
     useEffect(() => setSelectedZones([]), [persistentMap])
+
+    // Deleting a zone takes a second tap within a few seconds.
+    const [confirmDelete, setConfirmDelete] = useState(false)
+    useEffect(() => setConfirmDelete(false), [selectedZones])
+    useEffect(() => {
+        if (!confirmDelete) return
+        const timer = setTimeout(() => setConfirmDelete(false), 4000)
+        return () => clearTimeout(timer)
+    }, [confirmDelete])
     const toggleZone = (id: string) => setSelectedZones(prev =>
         prev.includes(id) ? prev.filter(z => z !== id) : prev.length >= 16 ? prev : [...prev, id])
 
@@ -456,9 +465,15 @@ export default () => {
                                 </>
                             )}
 
+                            {editable && (
+                                <SectionLabel right={<button type="button" className={styles.addButton} onClick={() => openEdit(uuidv4())}>{t('ui.addNoGo')}</button>}>
+                                    {t('ui.otherBoundaries')}
+                                </SectionLabel>
+                            )}
+                            {editable && others.length === 0 && <div className={ui.info}>{t('ui.noGoHint')}</div>}
                             {others.length > 0 && (
                                 <>
-                                    <SectionLabel>{t('ui.otherBoundaries')}</SectionLabel>
+                                    {!editable && <SectionLabel>{t('ui.otherBoundaries')}</SectionLabel>}
                                     <div className={ui.list}>
                                         {others.map(item => (
                                             <ListRow key={item.id}
@@ -477,15 +492,36 @@ export default () => {
 
                             {!isDocked(robot) && <div className={ui.info}>{t('ui.needsDock')}</div>}
 
-                            <div className={styles.mapActions}>
-                                <button type="button" className={ui.ghost} onClick={() => selectedZones.length === 1 ? openInfo(selectedZones[0]) : setMode('map-edit')}>
-                                    <LuPencil size={18} aria-hidden="true" />{t('ui.edit')}
-                                </button>
-                                <button type="button" className={ui.primary} disabled={!isDocked(robot) || selectedZones.length === 0 || !editable}
-                                    onClick={() => cleanZones(selectedZones)}>
-                                    <LuPlay size={18} fill="currentColor" aria-hidden="true" />{selectedZones.length ? t('ui.cleanZones', { count: selectedZones.length }) : t('ui.cleanTitle')}
-                                </button>
-                            </div>
+                            {(() => {
+                                // One zone picked: it can be edited or deleted right here.
+                                const single = selectedZones.length === 1 ? boundaries.find(b => b.id === selectedZones[0]) : undefined
+                                return (
+                                    <div className={`${styles.mapActions} ${single ? styles.mapActions3 : ''}`}>
+                                        <button type="button" className={ui.ghost}
+                                            aria-label={single ? `${t('ui.edit')} ${single.name}` : t('ui.edit')}
+                                            onClick={() => single ? openEdit(single.id) : setMode('map-edit')}>
+                                            <LuPencil size={18} aria-hidden="true" />{t('ui.edit')}
+                                        </button>
+                                        {single && (
+                                            <button type="button" className={`${ui.ghost} ${confirmDelete ? styles.dangerConfirm : styles.danger}`}
+                                                aria-label={`${t('common.delete')} ${single.name}`}
+                                                onClick={() => {
+                                                    if (!confirmDelete) { setConfirmDelete(true); return }
+                                                    deleteBoundary(single.id)
+                                                    setSelectedZones([])
+                                                    setConfirmDelete(false)
+                                                }}>
+                                                <LuTrash2 size={18} aria-hidden="true" />{confirmDelete ? t('ui.confirm') : t('common.delete')}
+                                            </button>
+                                        )}
+                                        <button type="button" className={ui.primary} disabled={!isDocked(robot) || selectedZones.length === 0 || !editable}
+                                            onClick={() => cleanZones(selectedZones)}>
+                                            <LuPlay size={18} fill="currentColor" aria-hidden="true" />
+                                            {single ? t('ui.cleanTitle') : selectedZones.length ? t('ui.cleanZones', { count: selectedZones.length }) : t('ui.cleanTitle')}
+                                        </button>
+                                    </div>
+                                )
+                            })()}
                         </div>
                     )
                 })()}

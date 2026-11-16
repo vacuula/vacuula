@@ -1,6 +1,10 @@
 {
     "String-version": "4",
     "ui": {
+        "deleteNamed": "Delete “{{name}}”",
+        "addNoGo": "+ No-go line",
+        "noGoHint": "A no-go line keeps the robot from crossing: draw it on the map without closing it.",
+        "confirm": "Confirm",
         "days": "Days",
         "time": "Time",
         "saveSlots_one": "Save the slot",
