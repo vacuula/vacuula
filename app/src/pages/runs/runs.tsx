@@ -40,7 +40,7 @@ export default () => {
     useEffect(() => {
         if (!robot) return;
         getCleanings();
-    }, [robot])
+    }, [robot.serial])
 
     useEffect(() => {
         setDrawerOpen(!!selectedCleaning);
