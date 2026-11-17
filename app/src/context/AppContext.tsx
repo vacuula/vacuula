@@ -1,4 +1,5 @@
-import { createContext, useEffect, useState } from 'react'
+import { createContext, useEffect, useRef, useState } from 'react'
+import type { SetStateAction } from 'react'
 import type { ReactNode } from 'react'
 import { BASE_PATH, Http, type LoadingState, type ServerInfo } from '../http'
 import { GEN3_COMMANDS } from '../http/gen3'
@@ -49,7 +50,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const [robots, setRobots] = useState<QuickRobotInfo>()
     const [lastHeartbeat, setLastHeartbeat] = useState<number | undefined>()
     // const [persistentMaps, setPersistentMaps] = useState<PersistentMap[]>()
-    const [cleanings, setCleanings] = useState<Neato.Gen4.Cleaning[] | Neato.Gen3.CleaningRun[]>()
+    // Runs are kept per robot: switching robots must not show the other one's.
+    type Runs = Neato.Gen4.Cleaning[] | Neato.Gen3.CleaningRun[]
+    const [cleaningsBySerial, setCleaningsBySerial] = useState<Record<string, Runs | undefined>>({})
     const { isDark: isDarkMode, setTheme } = useTheme()
     const setIsDarkMode = (dark: boolean) => setTheme(dark ? 'dark' : 'light')
     const [isLoading, setIsLoading] = useState(false)
@@ -86,6 +89,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     const getGen3State = (serial: string, name: string) => {
         GEN3_COMMANDS.getRobotState(serial).then((res) => {
+                if (wantedSerial.current && wantedSerial.current !== serial) return
                 setRobot({
                     type: RobotType.NeatoGen3,
                     serial,
@@ -100,7 +104,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
             })
     }
 
+    // The robot asked for last: a late answer about another robot is dropped.
+    const wantedSerial = useRef<string | undefined>(undefined)
+    const hasRobot = useRef(false)
+    useEffect(() => { hasRobot.current = !!robot }, [robot])
+
     const connectToRobot = (robotsInfo: QuickRobotInfo, serial: string, type: RobotType, name: string) => {
+        wantedSerial.current = serial
         setRobot(undefined)
 
         if (type === RobotType.NeatoGen3) {
@@ -110,6 +120,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 const body = res.data.body
                 const label_serial = robotsInfo[serial]?.label_serial
                 if (!label_serial) return; // TODO? error?
+                if (wantedSerial.current !== serial) return
                 setRobot({
                     type: RobotType.NeatoGen4,
                     serial,
@@ -175,8 +186,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
             const data = JSON.parse(event.data) as QuickRobotInfo
             setRobots(data)
 
-            // only auto select a robot if one is already not selected
-            if (robot) return;
+            // only auto select a robot if one is already not selected (a ref:
+            // this listener lives as long as the page, `robot` here would be stale)
+            if (hasRobot.current || wantedSerial.current) return;
             const last = localStorage.getItem('vacuula.selectedRobot')
             const entries = Object.entries(data)
             const firstOnline = entries.find(([s, info]) => s === last && info.connected) ?? entries.find(([, info]) => info.connected)
@@ -197,7 +209,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             if (!robots) return;
             if (robot.type === RobotType.NeatoGen3) {
                 GEN3_COMMANDS.getRobotState(robot.serial).then((res) => {
-                    setRobot(cur => cur ? {
+                    setRobot(cur => cur && cur.serial === robot.serial ? {
                         ...cur,
                         type: RobotType.NeatoGen3,
                         availableCommands: res.data.availableCommands,
@@ -211,7 +223,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             } else if (robot.type === RobotType.NeatoGen4) {
                 GEN4_COMMANDS.getRobotState(robot.serial).then((res) => {
                     const body = res.data.body;
-                    setRobot(cur => cur?.type === RobotType.NeatoGen4 ? {
+                    setRobot(cur => cur?.type === RobotType.NeatoGen4 && cur.serial === robot.serial ? {
                         ...cur,
                         type: RobotType.NeatoGen4,
                         availableCommands: body.available_commands,
@@ -238,6 +250,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         events.onmessage = (event) => {
             setLastHeartbeat(Date.now());
             const wrapper: VacuulaRobotEvent = JSON.parse(event.data);
+            // Only this robot's events update the page.
+            if (wrapper.serial && wrapper.serial !== robot.serial) return;
 
             if (wrapper.type === RobotType.NeatoGen4) {
                 type EventByService = {
@@ -297,6 +311,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
 
     if (hasOutdatedRobot && robots) return <ServerHasOutdatedRobot robots={robots} serverInfo={serverInfo} />
+
+    const cleanings = robot ? cleaningsBySerial[robot.serial] : undefined
+    // Bound to the robot shown when it is called: a late reply lands on its own robot.
+    const cleaningsSerial = robot?.serial
+    const setCleanings = (v: SetStateAction<Runs | undefined>) => {
+        if (!cleaningsSerial) return
+        setCleaningsBySerial(m => ({ ...m, [cleaningsSerial]: typeof v === 'function' ? v(m[cleaningsSerial]) : v }))
+    }
 
     const value: AppContextType = {
         serverInfo,
