@@ -62,6 +62,8 @@ export default () => {
             {robot.type === RobotType.NeatoGen4 && <Gen4RobotSettings openPicker={openPicker} />}
             {robot.type === RobotType.NeatoGen3 && <Gen3RobotSettings openPicker={openPicker} />}
 
+            <RegisteredRobots />
+
             <SectionLabel>{t('ui.appSection')}</SectionLabel>
             <div className={ui.list}>
                 <ListRow highlight icon={<LuPalette size={18} />} label={t('settings.style')} badge={t('ui.new')} value={labelOf(styleOptions, style)}
@@ -153,6 +155,51 @@ const RobotCard = () => {
             )}
             <span className={ui.small}>{t('settings.serial', { serial: 'label_serial' in robot ? robot.label_serial : robot.serial })}</span>
         </div>
+    )
+}
+
+/**
+ * Every robot the server knows, connected or not, each with a delete action:
+ * a sold or retired robot can be removed from the list.
+ */
+const RegisteredRobots = () => {
+    const { t } = useTranslation()
+    const { robots, robot, deleteRobot } = useRobot()
+    const [busy, setBusy] = useState<string>()
+    const [error, setError] = useState<string>()
+    const entries = Object.entries(robots ?? {})
+    if (entries.length === 0) return null
+
+    const remove = (serial: string, name: string, type: RobotType) => {
+        const comeback = type === RobotType.NeatoGen3 ? t('ui.deleteRobotGen3') : t('ui.deleteRobotGen4')
+        if (!window.confirm(t('ui.deleteRobotConfirm', { name }) + '\n\n' + comeback)) return
+        setBusy(serial)
+        setError(undefined)
+        deleteRobot(serial)
+            .catch(() => setError(t('ui.deleteRobotFailed', { name })))
+            .finally(() => setBusy(undefined))
+    }
+
+    return (
+        <>
+            <SectionLabel>{t('ui.robotsSection')}</SectionLabel>
+            <div className={ui.list}>
+                {entries.map(([serial, info]) => (
+                    <ListRow key={serial}
+                        label={info.name + (serial === robot.serial ? ' · ' + t('ui.robotShown') : '')}
+                        value={info.connected ? t('ui.online') : t('common.offline')}
+                        right={
+                            <button type="button" className={ui.ghost} style={{ minHeight: '3.4rem', fontSize: '1.3rem', color: 'var(--fail, #d33)' }}
+                                disabled={busy === serial} aria-label={t('ui.deleteNamed', { name: info.name })}
+                                onClick={() => remove(serial, info.name, info.type)}>
+                                {busy === serial ? t('ui.deleting') : t('common.delete')}
+                            </button>
+                        } />
+                ))}
+            </div>
+            {error && <div className={ui.info}>{error}</div>}
+            <div className={ui.info}>{t('ui.deleteRobotInfo')}</div>
+        </>
     )
 }
 

@@ -3,15 +3,17 @@ import logging
 from vacuula_server.conn import Gen2Gen3Conn
 from vacuula_server.gen3.commands import send_chunk, build_command
 from vacuula_server.env import GEN3_PORT, GEN4_PORT, HA_INGRESS
-from vacuula_server.constants import APP_VERSION, MAPS_DIR, MINIMUM_INSTALLER_VERSION
+from vacuula_server.constants import APP_VERSION, MAPS_DIR, MINIMUM_INSTALLER_VERSION, UPLOADS_DIR
 from vacuula_server.gen4.app import demote_floorplan
 from vacuula_server.state import robot_connections, client_connections, pending_requests, PendingRequest
 from vacuula_server.handlers.events import robots_snapshot, notify_robots_changed, CLIENT_QUEUE_MAX
-from vacuula_server.db import get_session
+from vacuula_server.db import get_session, engine
 from vacuula_server.models.persistent_map import FloorPlan, PersistentMap
 from vacuula_server.models.robot import Robot
 from vacuula_server.models.run import Gen4__Run, Gen3__Run
-from sqlalchemy import select, update
+from sqlalchemy import select, update, delete
+import shutil
+import socket
 from vacuula_server.generation import Generation, get_robot_by_serial
 import json
 import queue
@@ -148,6 +150,56 @@ def post_robot(req: RouterHandler, serial: str) -> None:
 
     notify_robots_changed()
     req.send_ok()
+
+def delete_robot(req: RouterHandler, serial: str) -> None:
+    """DELETE /robot/<serial> - forget a robot: its settings, maps, runs and
+    uploaded files. Allowed whether it is connected or not; a connected robot
+    is disconnected. A gen3 robot is then refused at login and only comes back
+    by running the installer again; a gen4 robot registers itself again when it
+    reconnects."""
+    with get_session() as session:
+        if session.scalar(select(Robot).where(Robot.serial == serial)) is None:
+            req.send_not_found("Robot not found")
+            return
+
+    # The tables delete their rows with the robot (ON DELETE CASCADE), which
+    # SQLite only applies when foreign keys are on for the connection; the
+    # PRAGMA must run before the transaction starts.
+    try:
+        with engine.connect() as conn:
+            conn.exec_driver_sql("PRAGMA foreign_keys=ON")
+            conn.execute(delete(Robot).where(Robot.serial == serial))
+            conn.commit()
+            conn.exec_driver_sql("PRAGMA foreign_keys=OFF")
+    except Exception:
+        logger.exception("Could not delete robot %s", serial)
+        req.send_bad_request("could not delete the robot")
+        return
+
+    # Its uploaded maps and run images.
+    if UPLOADS_DIR.is_dir():
+        for kind in UPLOADS_DIR.iterdir():
+            folder = kind / serial
+            if kind.is_dir() and folder.is_dir():
+                shutil.rmtree(folder, ignore_errors=True)
+
+    # Drop its live link, if any: the page stops showing it as connected.
+    conn = robot_connections.pop(serial, None)
+    if conn is not None:
+        conn.stop_event.set()
+        link = conn.conn
+        sock = conn.sock or getattr(link, "socket", None)
+        try:
+            if sock is not None:
+                sock.shutdown(socket.SHUT_RDWR)
+                sock.close()
+        except Exception:
+            pass
+
+    logger.info("Robot %s deleted", serial)
+    notify_robots_changed()
+    req.send_ok()
+
 
 def get_runs(req: RouterHandler, serial: str) -> None:
     """GET /robot/<serial>/runs - list all runs to user"""

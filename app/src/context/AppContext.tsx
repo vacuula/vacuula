@@ -19,6 +19,7 @@ interface AppContextType {
     robots?: QuickRobotInfo,
     selectRobot: (serial: string) => void,
     updateRobotName: (name: string) => Promise<void>
+    deleteRobot: (serial: string) => Promise<void>
     lastHeartbeat?: number,
 
     persistentMaps?: (Neato.Gen3.PersistentMap[] | Neato.Gen4.Floorplan[])
@@ -107,7 +108,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // The robot asked for last: a late answer about another robot is dropped.
     const wantedSerial = useRef<string | undefined>(undefined)
     const hasRobot = useRef(false)
-    useEffect(() => { hasRobot.current = !!robot }, [robot])
+    const shownSerial = useRef<string | undefined>(undefined)
+    useEffect(() => { hasRobot.current = !!robot; shownSerial.current = robot?.serial }, [robot])
 
     const connectToRobot = (robotsInfo: QuickRobotInfo, serial: string, type: RobotType, name: string) => {
         wantedSerial.current = serial
@@ -165,6 +167,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
     }
 
+    const deleteRobot = async (serial: string) => {
+        await Http.deleteRobot(serial)
+        setCleaningsBySerial(m => { const next = { ...m }; delete next[serial]; return next })
+        // The server's "robots" event then removes it from the list (and
+        // switches to another robot when it was the one shown).
+    }
+
     // fetch floorplans/persistent maps whenever the connected robot changes
     useEffect(() => {
         if (!robot) return;
@@ -185,6 +194,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
         events.addEventListener('robots', (event) => {
             const data = JSON.parse(event.data) as QuickRobotInfo
             setRobots(data)
+
+            // The robot shown was deleted: show another one.
+            if (shownSerial.current && !(shownSerial.current in data)) {
+                if (localStorage.getItem('vacuula.selectedRobot') === shownSerial.current) localStorage.removeItem('vacuula.selectedRobot')
+                wantedSerial.current = undefined
+                hasRobot.current = false
+                shownSerial.current = undefined
+                setRobot(undefined)
+            }
 
             // only auto select a robot if one is already not selected (a ref:
             // this listener lives as long as the page, `robot` here would be stale)
@@ -341,6 +359,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setCleanings,
 
         updateRobotName,
+        deleteRobot,
         getGen3State
     }
 
