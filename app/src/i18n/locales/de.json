@@ -105,7 +105,16 @@
         "undoChanges": "Rückgängig",
         "mapActive": "Aktiv",
         "tapMapHint": "Tipp: Tippe auf eine Zone in der Karte, um sie auszuwählen",
-        "putOnBase": "Stelle den Roboter zum Starten auf seine Station"
+        "putOnBase": "Stelle den Roboter zum Starten auf seine Station",
+        "robotsSection": "Registrierte Roboter",
+        "robotShown": "angezeigt",
+        "online": "Online",
+        "deleting": "Wird gelöscht…",
+        "deleteRobotConfirm": "„{{name}}“ vom Server löschen? Karten, Zonen, Reinigungsverlauf und Einstellungen werden gelöscht. Das ist endgültig.",
+        "deleteRobotGen3": "Um ihn danach wieder zu verwenden, muss der Vacuula-Installer erneut auf diesem Roboter ausgeführt werden.",
+        "deleteRobotGen4": "Ist er noch eingeschaltet und verbunden, meldet er sich von selbst wieder an, ohne seine alten Daten.",
+        "deleteRobotFailed": "„{{name}}“ konnte nicht gelöscht werden.",
+        "deleteRobotInfo": "Das Löschen eines Roboters entfernt seine Daten auf diesem Server, ob er verbunden ist oder nicht."
     },
     "nav": {
         "runs": "Verlauf",

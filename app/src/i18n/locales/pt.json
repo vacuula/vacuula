@@ -105,7 +105,16 @@
         "undoChanges": "Desfazer",
         "mapActive": "Ativo",
         "tapMapHint": "Dica: toque numa zona no mapa para escolhê-la",
-        "putOnBase": "Coloque o robô na base para iniciar"
+        "putOnBase": "Coloque o robô na base para iniciar",
+        "robotsSection": "Robots registados",
+        "robotShown": "apresentado",
+        "online": "Ligado",
+        "deleting": "A eliminar…",
+        "deleteRobotConfirm": "Eliminar “{{name}}” do servidor? Os mapas, zonas, histórico de limpezas e definições serão apagados. Não pode ser anulado.",
+        "deleteRobotGen3": "Para o recuperar depois, será preciso voltar a executar o instalador Vacuula neste robot.",
+        "deleteRobotGen4": "Se ainda estiver ligado, voltará a registar-se sozinho, sem os dados antigos.",
+        "deleteRobotFailed": "Não foi possível eliminar “{{name}}”.",
+        "deleteRobotInfo": "Eliminar um robot apaga os seus dados neste servidor, esteja ligado ou não."
     },
     "nav": {
         "runs": "Histórico",

@@ -105,7 +105,16 @@
         "undoChanges": "Undo",
         "mapActive": "Active",
         "tapMapHint": "Tip: tap a zone on the map to pick it",
-        "putOnBase": "Put the robot on its base to start"
+        "putOnBase": "Put the robot on its base to start",
+        "robotsSection": "Registered robots",
+        "robotShown": "shown",
+        "online": "Online",
+        "deleting": "Deleting…",
+        "deleteRobotConfirm": "Delete “{{name}}” from the server? Its maps, zones, cleaning history and settings will be erased. This cannot be undone.",
+        "deleteRobotGen3": "To get it back afterwards, run the Vacuula installer on this robot again.",
+        "deleteRobotGen4": "If it is still on and connected, it will register again by itself, without its old data.",
+        "deleteRobotFailed": "“{{name}}” could not be deleted.",
+        "deleteRobotInfo": "Deleting a robot erases its data on this server, whether it is connected or not."
     },
     "nav": {
         "runs": "History",
