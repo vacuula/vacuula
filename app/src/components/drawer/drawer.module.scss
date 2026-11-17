@@ -1,17 +1,28 @@
 
 @use '../../variables.scss' as *;
 
+.clip {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 999;
+}
+
 .drawer {
     position: absolute;
     bottom: 0;
     left: 0;
     right: 0;
+    pointer-events: auto;
     background: $bg;
     z-index: 999;
     touch-action: none;
     display: flex;
     flex-direction: column;
-    height: 100%;
+    will-change: transform;
 }
 
 .drawerHandle {
@@ -44,7 +55,7 @@
     font-weight: 600;
     font-size: 1.3rem;
     letter-spacing: 0.05rem;
-    text-transform: uppercase;
+    text-transform: var(--label-transform);
 }
 
 .drawerContent {
@@ -57,6 +68,22 @@
     overflow-y: auto;
 }
 
+// Footer: stays visible while the content above it scrolls
+.drawerFooter {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    padding: 1.2rem 1.6rem calc(1.2rem + env(safe-area-inset-bottom));
+    border-top: 1px solid $border;
+    background: $bg;
+}
+
+// The content's bottom padding is taken by the footer when there is one
+.drawerContent:has(+ .drawerFooter) {
+    padding-bottom: 1.6rem;
+}
+
 
 .handleIcon {
     color: $text-primary;
@@ -66,4 +93,8 @@
     padding: 0.4rem;
     border-radius: 50%;
     @include pressable;
+}
+.headerAction {
+    position: absolute;
+    right: 1.6rem;
 }

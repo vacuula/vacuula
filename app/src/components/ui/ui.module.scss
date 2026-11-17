@@ -1,0 +1,455 @@
+@use '../../variables.scss' as *;
+
+// Building blocks of the redesigned screens (see the "10 styles" mockups).
+// Shapes come from the style tokens (--radius-card, --radius-control) so a
+// style can square or round them without touching the screens.
+
+.page {
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+    width: 100%;
+    padding: 0.8rem 1.6rem 1.6rem;
+    overflow-y: auto;
+}
+
+// Blocks keep their natural height; the page scrolls instead of squeezing them.
+.page > * {
+    flex-shrink: 0;
+}
+
+.drawerBody > * {
+    flex-shrink: 0;
+}
+
+.pageHead {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    min-height: 3.6rem;
+}
+
+.pageTitle {
+    flex: 1;
+    margin: 0;
+    font-size: 2.6rem;
+    font-weight: 700;
+    line-height: 1.1;
+    color: $text-primary;
+}
+
+.sectionHead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem;
+    margin: 0.2rem 0.2rem -0.4rem;
+}
+
+.sectionLabel {
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: var(--label-transform);
+    color: var(--label-color);
+}
+
+.badge {
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.2rem 0.8rem;
+    border-radius: 999px;
+    background: $accent;
+    color: $on-accent;
+    white-space: nowrap;
+}
+
+.card {
+    background: $surface;
+    border: 1px solid $border;
+    border-radius: var(--radius-card);
+    box-shadow: var(--card-shadow);
+    padding: 1.4rem;
+}
+
+.rowCard {
+    display: flex;
+    align-items: center;
+    gap: 1.2rem;
+    padding: 1.2rem 1.4rem;
+    width: 100%;
+    text-align: left;
+    color: inherit;
+    font: inherit;
+}
+
+button.rowCard {
+    @include hoverable;
+}
+
+.iconBox {
+    width: 4rem;
+    height: 4rem;
+    flex: none;
+    border-radius: var(--radius-control);
+    background: $accent-soft;
+    color: $accent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.rowTitle {
+    font-size: 1.55rem;
+    font-weight: 700;
+    color: $text-primary;
+}
+
+.muted {
+    font-size: 1.3rem;
+    color: $text-muted;
+}
+
+.small {
+    font-size: 1.1rem;
+    color: $text-muted;
+    font-weight: 500;
+}
+
+.grow {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.chev {
+    color: $text-muted;
+    flex: none;
+}
+
+.grid2,
+.grid3,
+.grid4 {
+    display: grid;
+    gap: 0.8rem;
+}
+
+.grid2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.grid3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.grid4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+// ── Chips (quick actions, zones, routines) ──
+.chip {
+    position: relative;
+    min-height: 5.2rem;
+    padding: 0.8rem 0.6rem;
+    border-radius: var(--radius-control);
+    background: $surface;
+    border: 1px solid $border;
+    box-shadow: var(--card-shadow);
+    color: $text-primary;
+    font: inherit;
+    font-size: 1.25rem;
+    font-weight: 600;
+    line-height: 1.2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    text-align: center;
+    @include pressable;
+
+    &.row {
+        flex-direction: row;
+        justify-content: flex-start;
+        gap: 0.8rem;
+        min-height: 4.4rem;
+        padding: 0.6rem 1rem;
+        text-align: left;
+        font-size: 1.35rem;
+    }
+
+    &.active {
+        background: $accent-soft;
+        border: 2px solid $accent;
+        font-weight: 800;
+    }
+
+    &:disabled,
+    &.disabled {
+        opacity: 0.45;
+    }
+}
+
+.chipIcon {
+    color: $accent;
+    display: flex;
+}
+
+.chipSub {
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: $text-muted;
+}
+
+.order {
+    width: 2.2rem;
+    height: 2.2rem;
+    flex: none;
+    border-radius: 999px;
+    background: $accent;
+    color: $on-accent;
+    font-size: 1.2rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.orderEmpty {
+    width: 2.2rem;
+    height: 2.2rem;
+    flex: none;
+    border-radius: 999px;
+    border: 2px solid $text-muted;
+}
+
+.colorDot {
+    width: 1.2rem;
+    height: 1.2rem;
+    margin: 0 0.5rem;
+    flex: none;
+    border-radius: 999px;
+}
+
+.colorDotSmall {
+    width: 1rem;
+    height: 1rem;
+    flex: none;
+    border-radius: 999px;
+}
+
+// Edit mode: square checkbox in place of the order badge
+.check {
+    width: 2.2rem;
+    height: 2.2rem;
+    flex: none;
+    border-radius: 0.6rem;
+    border: 2px solid $text-muted;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.checkOn {
+    background: $accent;
+    border-color: $accent;
+    color: $on-accent;
+}
+
+.chip.checkedChip {
+    border-width: 2px;
+    font-weight: 800;
+}
+
+.dashed {
+    background: none;
+    box-shadow: none;
+    border: 1px dashed $text-muted;
+    color: $text-muted;
+    font-weight: 700;
+    justify-content: center;
+}
+
+// ── Segmented control ──
+.seg {
+    display: grid;
+    grid-auto-columns: minmax(0, 1fr);
+    grid-auto-flow: column;
+    gap: 0.4rem;
+    padding: 0.4rem;
+    border-radius: var(--radius-control);
+    background: $surface-neutral-2;
+}
+
+.segItem {
+    min-height: 4.2rem;
+    border: none;
+    border-radius: calc(var(--radius-control) - 0.4rem);
+    background: none;
+    color: $text-muted;
+    font: inherit;
+    font-size: 1.35rem;
+    font-weight: 600;
+    @include pressable;
+
+    &.on {
+        background: $accent;
+        color: $on-accent;
+        font-weight: 800;
+    }
+}
+
+// ── Stats ──
+.stat {
+    background: $surface;
+    border: 1px solid $border;
+    border-radius: var(--radius-card);
+    box-shadow: var(--card-shadow);
+    padding: 1rem 1.2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+
+    &.flat {
+        background: $surface-neutral-2;
+        border: none;
+        box-shadow: none;
+        border-radius: var(--radius-control);
+        padding: 0.8rem 1rem;
+    }
+}
+
+.statNum {
+    font-size: 2rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: $text-primary;
+    white-space: nowrap;
+
+    .flat & {
+        font-size: 1.8rem;
+    }
+}
+
+// ── Buttons ──
+.primary,
+.ghost {
+    min-height: 5rem;
+    padding: 0 1.8rem;
+    border-radius: var(--radius-control);
+    font: inherit;
+    font-size: 1.5rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.8rem;
+    @include pressable;
+
+    &:disabled {
+        opacity: 0.45;
+    }
+}
+
+.primary {
+    border: none;
+    background: $accent;
+    color: $on-accent;
+}
+
+.ghost {
+    border: 1px solid $border;
+    background: $surface;
+    color: $text-primary;
+    font-weight: 700;
+}
+
+// ── Grouped settings list ──
+.list {
+    background: $surface;
+    border: 1px solid $border;
+    border-radius: var(--radius-card);
+    box-shadow: var(--card-shadow);
+    overflow: hidden;
+}
+
+.item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    width: 100%;
+    min-height: 4.8rem;
+    padding: 0 1.4rem;
+    border: none;
+    border-bottom: 1px solid $border;
+    background: none;
+    color: $text-primary;
+    font: inherit;
+    font-size: 1.45rem;
+    text-align: left;
+
+    &:last-child {
+        border-bottom: none;
+    }
+
+    &.highlight {
+        background: $accent-soft;
+        font-weight: 700;
+    }
+}
+
+button.item {
+    @include hoverable;
+}
+
+.itemLabel {
+    flex: 1;
+    min-width: 0;
+}
+
+.itemValue {
+    color: $text-muted;
+    font-size: 1.4rem;
+    text-align: right;
+}
+
+.itemIcon {
+    width: 3rem;
+    height: 3rem;
+    flex: none;
+    border-radius: calc(var(--radius-control) - 0.2rem);
+    background: $accent;
+    color: $on-accent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.check {
+    color: $accent;
+    flex: none;
+}
+
+.info {
+    font-size: 1.25rem;
+    line-height: 1.45;
+    color: $text-muted;
+    padding: 0 0.2rem;
+}
+
+.textInput {
+    width: 100%;
+    min-height: 4.4rem;
+    padding: 0 1.2rem;
+    border-radius: var(--radius-control);
+    border: 1px solid $border;
+    background: $bg;
+    color: $text-primary;
+    font: inherit;
+    font-size: 1.5rem;
+}
+
+.drawerBody {
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+    padding: 0.4rem 0 1.6rem;
+}

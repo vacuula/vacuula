@@ -143,6 +143,11 @@ export class Http {
     return instance.post(`/robot/${serial}`, data)
   }
 
+  /** Forget a robot on the server: its settings, maps and runs. */
+  static deleteRobot(serial: string) {
+    return instance.delete(`/robot/${serial}`)
+  }
+
   static setLoadingStateCallback(cb: ((state: LoadingState) => void) | null) {
     loadingStateCallback = cb;
   }

@@ -1,5 +1,5 @@
 import { Http } from "../http"
-import type { NoGoLine, SetZone, Zone } from "../pages/map/types"
+import type { NoGoLine, SetZone } from "../components/map/types"
 import type { ScheduleEvent } from "../pages/schedule/types"
 import type { Neato } from "../types"
 import type { Preferences } from "../types/neato/gen3"
@@ -25,7 +25,7 @@ function getRobotInfo() {
 }
 
 function dismissCurrentAlert(serial: string) {
-    return Http.sendCmd(serial, { cmd: "dismissCurrentAlert" })
+    return Http.sendCmd<RobotBaseResponse<{}>>(serial, { cmd: "dismissCurrentAlert" })
 }
 
 function findMe(serial: string) {
@@ -100,14 +100,15 @@ function startCleaningZone(serial: string, mapId: string, zoneId: string, mode: 
     })
 }
 
-// Is this really how it works?
-function startCleaningZones(serial: string, zoneIds: string[], mode: CleaningMode, navigationMode: CleaningNavigationMode) {
+// Multi-zone cleaning (houseCleaning basic-4): the zones are cleaned in the given order.
+function startCleaningZones(serial: string, mapId: string, zoneIds: string[], mode: CleaningMode, navigationMode: CleaningNavigationMode) {
     return Http.sendCmd(serial, {
         cmd: "startCleaning",
         params: {
             category: CleaningCategory.MAP,
             mode,
             navigationMode,
+            mapId,
             boundaryIds: zoneIds,
         }
     })
@@ -147,11 +148,11 @@ function setSchedule(serial: string, events: ScheduleEvent[]) {
 }
 
 function enableSchedule(serial: string) {
-    return Http.sendCmd<RobotBaseResponse>(serial, { cmd: "enableSchedule" })
+    return Http.sendCmd<RobotBaseResponse<{}>>(serial, { cmd: "enableSchedule" })
 }
 
 function disableSchedule(serial: string) {
-    return Http.sendCmd<RobotBaseResponse>(serial, { cmd: "disableSchedule" })
+    return Http.sendCmd<RobotBaseResponse<{}>>(serial, { cmd: "disableSchedule" })
 }
 
 export const GEN3_COMMANDS = {

@@ -39,6 +39,7 @@ def nucleo_init(req: RouterHandler) -> None:
 
     send_chunk(req.wfile, build_heartbeat())
     conn = RobotConn(serial, Generation.GEN3, Gen2Gen3Conn(gen3_data.password, req.wfile))
+    conn.sock = sock  # lets a robot deletion close the link
     robot_connections[serial] = conn
     logger.info("Robot %s connected", serial)
     notify_robots_changed()

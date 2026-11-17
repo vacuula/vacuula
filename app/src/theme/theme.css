@@ -177,6 +177,22 @@
   --accent-border: color-mix(in srgb, var(--accent) 45%, var(--surface));
 }
 
+/* ---------- Style tokens ----------
+   Typography and label treatment that a style (data-style, see
+   src/theme/styles/) may override. The defaults are the original look. */
+:root {
+  --font-ui: Arial, sans-serif;
+  --font-mono: 'Space Mono', monospace;
+  --label-transform: uppercase;
+  --label-color: var(--accent);
+  --nav-label-display: none;
+  --nav-bg: var(--bg);
+  --nav-border: none;
+  --radius-card: 1.6rem;
+  --radius-control: 1.4rem;
+  --card-shadow: none;
+}
+
 /* ---------- Page ---------- */
 html {
   background: var(--bg);
