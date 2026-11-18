@@ -12,6 +12,7 @@ export const APP_LANGUAGES: AppLanguage[] = [
     { code: 'pt', label: 'Português' },
     { code: 'fr', label: 'Français' },
     { code: 'de', label: 'Deutsch' },
+    { code: 'es', label: 'Español' },
 ]
 
 export const DEFAULT_LANGUAGE = 'en'
