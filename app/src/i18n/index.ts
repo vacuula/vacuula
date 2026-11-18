@@ -7,6 +7,7 @@ import en from './locales/en.json'
 import pt from './locales/pt.json'
 import fr from './locales/fr.json'
 import de from './locales/de.json'
+import es from './locales/es.json'
 
 // Key under which the chosen language is persisted in localStorage.
 export const LANGUAGE_STORAGE_KEY = 'vacuula.language'
@@ -20,6 +21,7 @@ i18n
             pt: { translation: pt },
             fr: { translation: fr },
             de: { translation: de },
+            es: { translation: es },
         },
         fallbackLng: DEFAULT_LANGUAGE,
         supportedLngs: SUPPORTED_LANGUAGE_CODES,

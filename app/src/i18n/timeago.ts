@@ -4,6 +4,7 @@ import enStrings from 'react-timeago/language-strings/en'
 import ptStrings from 'react-timeago/language-strings/pt'
 import frStrings from 'react-timeago/language-strings/fr'
 import deStrings from 'react-timeago/language-strings/de'
+import esStrings from 'react-timeago/language-strings/es'
 import { useTranslation } from 'react-i18next'
 import { DEFAULT_LANGUAGE } from './languages'
 
@@ -13,6 +14,7 @@ const FORMATTERS: Record<string, Formatter> = {
     pt: buildFormatter(ptStrings),
     fr: buildFormatter(frStrings),
     de: buildFormatter(deStrings),
+    es: buildFormatter(esStrings),
 }
 
 export function useTimeAgoFormatter(): Formatter {
