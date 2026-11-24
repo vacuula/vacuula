@@ -17,7 +17,7 @@
         "options": "Optionen",
         "notAvailable": "Nicht Verfügbar",
         "loading": "Laden",
-        "sendingCommand": "Sende Befehl"
+        "sendingCommand": "Befehl wird gesendet..."
     },
     "modes": {
         "auto": "Auto",
