@@ -137,9 +137,11 @@
         "selectZones": "Clean zones",
         "selectZonesHelp": "Optional, select one or more zones to clean, if none selected, it will clean entire map.",
         "operationLoadError": "Could not load the schedule. Please try again.",
-        "operationRejected": "The robot rejected the change. Your schedule and form have been kept. Please try again.",
-        "operationUnconfirmed": "The updated schedule could not be confirmed. Changes are blocked to avoid overwriting the robot's schedule. Retry checking, or reload this page to review its current schedule before trying again.",
-        "retrySchedule": "Retry checking schedule"
+        "operationRejectedUnconfirmed": "The robot rejected the change. Could not retrieve its schedule. Check the schedule again to resume editing.",
+        "operationRejected": "The robot rejected the change. Its current schedule has been reloaded.",
+        "operationChanged": "The change could not be confirmed. The robot’s current schedule has been reloaded.",
+        "operationUnconfirmed": "Could not check the robot’s schedule. Changes are temporarily blocked. Please try again.",
+        "checkSchedule": "Check schedule"
     },
     "map": {
         "maps": "Maps",

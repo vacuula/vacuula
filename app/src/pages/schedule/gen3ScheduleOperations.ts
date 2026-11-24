@@ -1,8 +1,9 @@
+import { isAxiosError } from 'axios'
 import type { GetSchedule, ScheduleEvent } from './types'
 
 type ReadEvent = ScheduleEvent & { boundary?: { id: string }, mapId?: string }
 type Reply<T> = { data: { result: string, data: T } }
-type ErrorKind = 'load' | 'rejected' | 'unconfirmed'
+type ErrorKind = 'load' | 'rejected' | 'rejectedUnconfirmed' | 'unconfirmed' | 'changed'
 type Expected = { events?: ScheduleEvent[], enabled?: boolean }
 
 export interface ScheduleTransport {
@@ -48,7 +49,7 @@ export function createScheduleOperations(
     wait = () => new Promise<void>(resolve => setTimeout(resolve, 250)),
 ) {
     let snapshot: ScheduleSnapshot = { busy: false, unconfirmed: false }
-    let expected: Expected | undefined
+    let recoveryFeedback: 'rejected' | 'changed' | undefined
     let generation = 0
     const listeners = new Set<() => void>()
     const publish = (patch: Partial<ScheduleSnapshot>) => {
@@ -64,13 +65,28 @@ export function createScheduleOperations(
         }
         return value
     }
+    const load = async (feedback = recoveryFeedback) => {
+        const current = ++generation
+        recoveryFeedback = feedback
+        publish({ busy: true, error: undefined })
+        try {
+            const schedule = await read()
+            if (current === generation) {
+                recoveryFeedback = undefined
+                publish({ schedule, busy: false, unconfirmed: false, error: feedback })
+            }
+        } catch {
+            if (current === generation) publish({ busy: false,
+                error: feedback === 'rejected' ? 'rejectedUnconfirmed' : snapshot.unconfirmed ? 'unconfirmed' : 'load',
+            })
+        }
+    }
     const confirm = async (wanted: Expected, current: number) => {
         for (let attempt = 0; attempt < 8 && current === generation; attempt++) {
             try {
                 const schedule = await read()
                 if (current !== generation) return false
                 if (matches(schedule, wanted)) {
-                    expected = undefined
                     publish({ schedule, busy: false, unconfirmed: false, error: undefined })
                     return true
                 }
@@ -79,37 +95,38 @@ export function createScheduleOperations(
             }
             if (attempt < 7 && current === generation) await wait()
         }
-        if (current === generation) publish({ busy: false, unconfirmed: true, error: 'unconfirmed' })
+        if (current === generation) {
+            publish({ unconfirmed: true, error: 'unconfirmed' })
+            // Confirmation failed: reconcile with the robot rather than requiring
+            // the requested schedule to match forever. A failed read keeps edits locked.
+            await load('changed')
+        }
         return false
     }
     const perform = async (wanted: Expected, command: () => Promise<{ data: { result: string } }>) => {
         if (snapshot.busy || snapshot.unconfirmed || !snapshot.schedule) return false
         const current = ++generation
-        expected = wanted
         publish({ busy: true, error: undefined })
         try {
             assertSuccess((await command()).data)
         } catch (error) {
             if (current !== generation) return false
-            if (error instanceof RobotRejected) {
-                expected = undefined
-                publish({ busy: false, error: 'rejected' })
+            const rejected = error instanceof RobotRejected || (
+                isAxiosError<{ result?: unknown }>(error)
+                && error.response?.status === 400
+                && typeof error.response.data?.result === 'string'
+                && error.response.data.result !== 'ok'
+            )
+            if (rejected) {
+                // Even a rejected command can change the robot's schedule.
+                publish({ unconfirmed: true })
+                await load('rejected')
                 return false
             }
             // Timeouts/disconnections may happen after the robot applied the command.
             // Confirm by reading; never resend an operation with an unknown outcome.
         }
         return confirm(wanted, current)
-    }
-    const load = async () => {
-        const current = ++generation
-        publish({ busy: true, error: undefined })
-        try {
-            const schedule = await read()
-            if (current === generation) publish({ schedule, busy: false, error: undefined })
-        } catch {
-            if (current === generation) publish({ busy: false, error: 'load' })
-        }
     }
     return {
         getSnapshot: () => snapshot,
@@ -129,11 +146,10 @@ export function createScheduleOperations(
         toggle: (enabled: boolean) => perform({ enabled, events: snapshot.schedule?.events }, () => transport.toggle(enabled)),
         retry: async () => {
             if (snapshot.busy) return false
-            if (!expected) { await load(); return false }
-            const wanted = expected
-            const current = ++generation
-            publish({ busy: true, error: undefined })
-            return await confirm(wanted, current) && wanted.events !== undefined
+            // Recovery only reads the current schedule; it never resends a write
+            // or reports an unconfirmed change as a successful save.
+            await load()
+            return false
         },
     }
 }

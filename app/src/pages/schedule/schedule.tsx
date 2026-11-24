@@ -81,8 +81,11 @@ function Gen3Schedule() {
     const feedback = <div aria-live="polite">
         {busy && <p role="status">{t(schedule ? 'common.sendingCommand' : 'common.loading')}</p>}
         {error && <div>
-            <p role="alert">{t(`schedule.operation${error === 'load' ? 'LoadError' : error === 'rejected' ? 'Rejected' : 'Unconfirmed'}`)}</p>
-            {error !== 'rejected' && <Button text={t('schedule.retrySchedule')} style="secondary" disabled={busy}
+            <p role="alert">{t(`schedule.operation${({
+                load: 'LoadError', rejected: 'Rejected', rejectedUnconfirmed: 'RejectedUnconfirmed',
+                changed: 'Changed', unconfirmed: 'Unconfirmed',
+            } as const)[error]}`)}</p>
+            {error !== 'rejected' && <Button text={t('schedule.checkSchedule')} style="secondary" disabled={busy}
                 onClick={() => { void operations.retry().then(saved => { if (saved) setDrawerOpen(false) }) }} />}
         </div>}
     </div>
@@ -137,7 +140,7 @@ function Gen3Schedule() {
             </fieldset>
             <Drawer
                 open={drawerOpen}
-                disabled={locked}
+                disabled={busy}
                 handle={false}
                 onOpenChange={setDrawerOpen}
                 openHeightPercent={70}
@@ -194,6 +197,7 @@ function Gen3Schedule() {
                         void saveEvents([scheduleForm, ...schedule.events])
                     }} />
                 </fieldset>
+                <Button text={t('common.cancel')} style="secondary" disabled={busy} onClick={() => setDrawerOpen(false)} />
 
             </Drawer>
             </>}
