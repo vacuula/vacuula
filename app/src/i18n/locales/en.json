@@ -124,6 +124,7 @@
         "addOneMore": "Add one more schedule",
         "noSchedules": "You don't have any schedules yet, why not add one?",
         "addEvent": "Add event",
+        "editEvent": "Edit event",
         "gen3Summary": "Runs on: {{day}} | Mode: {{mode}}",
         "gen3SummaryZone": "Zone: {{zone}}",
         "gen4Summary": "Runs {{when}} | {{mode}} mode | {{navigation}} navigation",
