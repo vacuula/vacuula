@@ -25,7 +25,7 @@ import { useGetPromotedFloorplan } from '../../utils/floormaps'
 import { Http } from '../../http'
 import type { NoGoLine, Zone } from '../../components/map/types'
 import { usePersistentMaps } from '../../loaders/resources'
-import { fetchAllGen3Boundaries, getCachedZones } from '../../loaders/gen3Boundaries'
+import { useGen3Zones } from '../../loaders/gen3Boundaries'
 import { isDocked, isGen4D10 } from '../../components/topbar/robotInfo'
 import { getGen3CleaningMode, getGen3NavigationMode, getGen4CleaningMode, getGen4NavigationMode } from '../../utils/modes'
 
@@ -139,17 +139,14 @@ export default function Home() {
 
     const { data: persistentMaps } = usePersistentMaps()
 
-    useEffect(() => {
-        if (robot.type !== RobotType.NeatoGen3 || !persistentMaps) return
-        fetchAllGen3Boundaries(robot.serial, persistentMaps)
-    }, [robot.serial, persistentMaps])
+    const getZones = useGen3Zones(robot.serial, persistentMaps, robot.type === RobotType.NeatoGen3)
 
     const [selectedZones, setSelectedZones] = useState<string[]>([])
     const [nogoEnabled, setNogoEnabled] = useState<boolean>(true)
 
     const zoneOptions = (persistentMaps ?? [])
         .filter(m => 'enabled' in m && m.enabled)
-        .flatMap(m => getCachedZones(robot.serial, m.id).map(z => ({ value: `${m.id}||:||${z.id}`, label: `${m.name} - ${z.name}` })))
+        .flatMap(m => getZones(m.id).map(z => ({ value: `${m.id}||:||${z.id}`, label: `${m.name} - ${z.name}` })))
 
     if (!isDocked(robot) && gen3__cleaningCategory === CleaningCategory.MAP ) gen3__setCleaningCategory(CleaningCategory.HOUSE)
         
@@ -428,8 +425,8 @@ export default function Home() {
                             {robot.type === RobotType.NeatoGen3 && zoneOptions.length > 0 && (
                                 <Input
                                     type="select"
-                                    label={t('schedule.selectZones')}
-                                    extraInfo={t('schedule.selectZonesHelp')}
+                                    label={t('schedule.selectSingleZone')}
+                                    extraInfo={t('schedule.selectSingleZoneHelp')}
                                     options={zoneOptions}
                                     allowDeselect={true}
                                     value={selectedZones[0]}
