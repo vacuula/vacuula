@@ -75,8 +75,7 @@ def load(serial: str, map_id: str, base: Path = MAPS_DIR) -> list[dict]:
 def save(serial: str, map_id: str, lines: list[dict], base: Path = MAPS_DIR) -> None:
     path = _file(serial, base)
     if path is None:
-        logger.warning("Refusing to store disabled boundaries for %r", serial)
-        return
+        raise ValueError(f"Refusing to store disabled boundaries for {serial!r}")
     with _lock:
         everything = _read_all(path)
         if lines:
@@ -92,32 +91,54 @@ def save(serial: str, map_id: str, lines: list[dict], base: Path = MAPS_DIR) -> 
         os.replace(tmp, path)
 
 
-def prepare_command(data: dict) -> tuple[dict, list[dict] | None]:
-    """Return the command to send to the robot, plus the disabled lines to
-    store once the robot accepts it (None if this isn't a boundary save)."""
+def prepare_command(serial: str, data: dict, base: Path = MAPS_DIR) -> tuple[dict, list[dict] | None]:
+    """Store the disabled lines of a boundary save and return the command to
+    send to the robot (without them), plus the previously stored lines for a
+    rollback (None if this isn't a boundary save).
+
+    The lines are stored *before* the command is sent: once the robot has the
+    stripped list, the server's copy is the only one left, so a late or lost
+    reply must not lose them. Raises if they can't be stored, so the caller
+    can refuse the save instead of dropping the lines."""
     params = data.get("params")
     if data.get("cmd") != SET_CMD or not isinstance(params, dict):
         return data, None
     boundaries = params.get("boundaries")
-    if not isinstance(params.get("mapId"), str) or not isinstance(boundaries, list):
+    map_id = params.get("mapId")
+    if not isinstance(map_id, str) or not isinstance(boundaries, list):
         return data, None
     disabled = [b for b in boundaries if _is_disabled_line(b)]
     kept = [b for b in boundaries if not _is_disabled_line(b)]
-    return {**data, "params": {**params, "boundaries": kept}}, disabled
+    previous = load(serial, map_id, base)
+    save(serial, map_id, disabled, base)
+    return {**data, "params": {**params, "boundaries": kept}}, previous
 
 
-def handle_reply(serial: str, data: dict, disabled: list[dict] | None, status: int | None,
+def rollback(serial: str, data: dict, previous: list[dict] | None, base: Path = MAPS_DIR) -> None:
+    """Restore the stored lines from before a boundary save the robot never
+    applied (rejected, or the command couldn't be sent)."""
+    params = data.get("params") if isinstance(data.get("params"), dict) else {}
+    map_id = params.get("mapId")
+    if data.get("cmd") == SET_CMD and previous is not None and isinstance(map_id, str):
+        save(serial, map_id, previous, base)
+
+
+def handle_reply(serial: str, data: dict, previous: list[dict] | None, status: int | None,
                  content: Any, base: Path = MAPS_DIR) -> Any:
-    """Store the disabled lines after a successful save, and add the stored
-    lines back into boundary replies. Returns the (possibly changed) reply."""
+    """Roll the stored lines back if the robot rejected a boundary save, and
+    add the stored lines back into boundary replies. Returns the (possibly
+    changed) reply."""
     cmd = data.get("cmd")
     params = data.get("params") if isinstance(data.get("params"), dict) else {}
     map_id = params.get("mapId")
-    if cmd not in (GET_CMD, SET_CMD) or not isinstance(map_id, str) or status != 200:
+    if cmd not in (GET_CMD, SET_CMD) or not isinstance(map_id, str):
         return content
 
-    if cmd == SET_CMD and disabled is not None:
-        save(serial, map_id, disabled, base)
+    if status == 400:
+        # The robot refused the save and kept its old boundaries.
+        rollback(serial, data, previous, base)
+    if status != 200:
+        return content
 
     stored = load(serial, map_id, base)
     if not stored:

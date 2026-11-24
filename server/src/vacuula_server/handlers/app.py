@@ -293,7 +293,7 @@ def post_robot_command(req: RouterHandler, serial: str) -> None:
 
     conn = robot_connections[serial]
     slot = PendingRequest()
-    pending_disabled = None
+    previous_disabled = None
     if (conn.gen == Generation.GEN4):
         # gen4
         req_id, err = robot_send_request(conn, data, slot)
@@ -303,7 +303,12 @@ def post_robot_command(req: RouterHandler, serial: str) -> None:
     elif (conn.gen == Generation.GEN3) and isinstance(conn.conn, Gen2Gen3Conn):
         # gen3
         # Disabled no-go lines stay on the server; the robot would obey them anyway (#95).
-        to_send, pending_disabled = disabled_boundaries.prepare_command(data)
+        try:
+            to_send, previous_disabled = disabled_boundaries.prepare_command(serial, data)
+        except Exception:
+            logger.exception("Could not store disabled boundaries for %s", serial)
+            req.send_internal_error("Could not store disabled no-go lines")
+            return
         req_id, msg = build_command(serial, to_send)
         pending_requests[str(req_id)] = slot
         logger.debug("Sending command to robot %s: %s", serial, data)
@@ -311,6 +316,10 @@ def post_robot_command(req: RouterHandler, serial: str) -> None:
             send_chunk(conn.conn.wfile, msg) # TODO
         except Exception:
             pending_requests.pop(str(req_id), None)
+            try:
+                disabled_boundaries.rollback(serial, data, previous_disabled)
+            except Exception:
+                logger.exception("Could not roll back disabled boundaries for %s", serial)
             _send_quietly(lambda: req.send_error_response(502, "Failed to send command to robot"))
             return
     else:
@@ -324,7 +333,7 @@ def post_robot_command(req: RouterHandler, serial: str) -> None:
         content = slot.content
         if conn.gen == Generation.GEN3:
             try:
-                content = disabled_boundaries.handle_reply(serial, data, pending_disabled, slot.status, content)
+                content = disabled_boundaries.handle_reply(serial, data, previous_disabled, slot.status, content)
             except Exception:
                 logger.exception("Failed to handle disabled boundaries for %s", serial)
         _send_quietly(lambda: req.send_response_data(content, True, slot.status))
