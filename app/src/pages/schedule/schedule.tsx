@@ -43,7 +43,7 @@ export default () => {
 
     const [scheduleForm, SetScheduleForm] = useState<ScheduleEvent>({
         startTime: '',
-        day: -1,
+        day: -1 as RobotDay, // not picked yet
         mode: 0
     })
 
