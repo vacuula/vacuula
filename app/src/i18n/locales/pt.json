@@ -116,6 +116,7 @@
         "addOneMore": "Adicionar mais um agendamento",
         "noSchedules": "Ainda não tem agendamentos, porque não adicionar um?",
         "addEvent": "Adicionar evento",
+        "editEvent": "Editar evento",
         "gen3Summary": "Dia: {{day}} | Modo: {{mode}}",
         "gen3SummaryZone": "Zona: {{zone}}",
         "gen4Summary": "Agendado {{when}} | Modo {{mode}} | Navegação {{navigation}}",

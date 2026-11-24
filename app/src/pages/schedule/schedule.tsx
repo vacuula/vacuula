@@ -42,11 +42,33 @@ export default () => {
         .flatMap(m => getCachedZones(robot.serial, m.id).map(z => ({ value: z.id, label: `${m.name} - ${z.name}` })))
 
 
-    const [scheduleForm, SetScheduleForm] = useState<ScheduleEvent>({
-        startTime: '',
-        day: -1,
-        mode: 0
-    })
+    // -1 / INVALID mean "nothing picked yet" in the form.
+    const emptyForm = (): ScheduleEvent => ({ startTime: '', day: -1 as RobotDay, mode: CleaningMode.INVALID })
+
+    const [scheduleForm, SetScheduleForm] = useState<ScheduleEvent>(emptyForm)
+    // Index of the event being edited, or null when adding a new one.
+    // Gen3 events have no IDs, so an edit replaces the event at this index.
+    const [editIndex, setEditIndex] = useState<number | null>(null)
+
+    const openNewEvent = () => {
+        setEditIndex(null)
+        SetScheduleForm(emptyForm())
+        setDrawerOpen(true)
+    }
+
+    const openEditEvent = (index: number) => {
+        const event = schedule?.events[index]
+        if (!event) return
+        setEditIndex(index)
+        // getSchedule returns the zone as `boundary`; the form works with boundaryId.
+        SetScheduleForm({
+            startTime: event.startTime,
+            day: event.day,
+            mode: event.mode,
+            boundaryId: event.boundaryId ?? event.boundary?.id,
+        })
+        setDrawerOpen(true)
+    }
 
     const getSchedule = () => {
         GEN3_COMMANDS.getSchedule(robot.serial).then(res => {
@@ -94,7 +116,7 @@ export default () => {
 
                 <hr style={{ width: '90%' }} />
 
-                <div className={`${styles.item} ${styles.actionItem}`} onClick={() => setDrawerOpen(true)}>
+                <div className={`${styles.item} ${styles.actionItem}`} onClick={openNewEvent}>
                     <div className={styles.info}>
                         <span>{t('schedule.newSchedule')}</span>
                         <span className={styles.type}>{t('schedule.addOneMore')}</span>
@@ -103,7 +125,7 @@ export default () => {
 
                 {schedule.events?.map((item, i) => {
                     return (
-                        <div key={i} className={styles.item}>
+                        <div key={i} className={styles.item} onClick={() => openEditEvent(i)}>
                             <div className={styles.info}>
                                 <span>{item.startTime}</span>
                                 <span className={styles.type}>
@@ -111,7 +133,7 @@ export default () => {
                                     {item.boundary && ` | ${t('schedule.gen3SummaryZone', { zone: item.boundary.name })}`}
                                 </span>
                             </div>
-                            <FaTrash onClick={() => removeEvent(i)} />
+                            <FaTrash onClick={(e) => { e.stopPropagation(); removeEvent(i) }} />
                         </div>
                     )
                 })}
@@ -124,7 +146,7 @@ export default () => {
                 handle={false}
                 onOpenChange={setDrawerOpen}
                 openHeightPercent={70}
-                title={t('schedule.addEvent')}
+                title={editIndex === null ? t('schedule.addEvent') : t('schedule.editEvent')}
             >
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -175,7 +197,10 @@ export default () => {
 
                     <Button text={t('common.save')} style='success' onClick={() => {
                         setDrawerOpen(false)
-                        GEN3_COMMANDS.setSchedule(robot.serial, [scheduleForm, ...schedule.events]).finally(() => getSchedule())
+                        const events = editIndex === null
+                            ? [scheduleForm, ...schedule.events]
+                            : schedule.events.map((event, i) => i === editIndex ? scheduleForm : event)
+                        GEN3_COMMANDS.setSchedule(robot.serial, events).finally(() => getSchedule())
                     }} />
                 </div>
 
