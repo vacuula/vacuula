@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 interface DrawerProps {
     handle: boolean // should the handle be visible when closed
     open: boolean,
+    disabled?: boolean,
     openHeightPercent: number
     onOpenChange?: (open: boolean) => void,
     children?: React.ReactNode,
@@ -34,7 +35,7 @@ export default function Drawer(props: DrawerProps) {
 
     // Pointer events cover mouse, touch and pen in every modern browser
     const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-        if (e.button !== 0) return
+        if (props.disabled || e.button !== 0) return
         dragStartYRef.current = e.clientY
         lastYRef.current = e.clientY
         startHeightRef.current = drawerHeight
@@ -63,6 +64,7 @@ export default function Drawer(props: DrawerProps) {
         if (!isDraggingDrawer) return
         if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
         setIsDraggingDrawer(false)
+        if (props.disabled) return
         if (!movedRef.current) return // click
         const lastDelta = lastDeltaRef.current
         if (lastDelta < -15) closeDrawer()
@@ -72,6 +74,7 @@ export default function Drawer(props: DrawerProps) {
     }
 
     const handleClick = () => {
+        if (props.disabled) return
         if (movedRef.current) { movedRef.current = false; return } // drag
         if (isDrawerOpen()) closeDrawer()
         else openDrawer()

@@ -127,7 +127,13 @@
         "usePromoted": "Usar mapa",
         "useNogoLayer": "Evitar linhas e zonas No-Go",
         "selectZones": "Zonas de limpeza",
-        "selectZonesHelp": "Opcional: selecione uma ou mais zonas para limpar; se nenhuma for selecionada, todo o mapa será limpo."
+        "selectZonesHelp": "Opcional: selecione uma ou mais zonas para limpar; se nenhuma for selecionada, todo o mapa será limpo.",
+        "operationLoadError": "Não foi possível carregar o agendamento. Tente novamente.",
+        "operationRejectedUnconfirmed": "O robot rejeitou a alteração. Não foi possível obter o agendamento. Verifique novamente o agendamento para voltar a fazer alterações.",
+        "operationRejected": "O robot rejeitou a alteração. O agendamento atual foi recarregado.",
+        "operationChanged": "Não foi possível confirmar a alteração. O agendamento atual do robot foi recarregado.",
+        "operationUnconfirmed": "Não foi possível verificar o agendamento do robot. As alterações estão temporariamente bloqueadas. Tente novamente.",
+        "checkSchedule": "Verificar agendamento"
     },
     "map": {
         "maps": "Mapas",
