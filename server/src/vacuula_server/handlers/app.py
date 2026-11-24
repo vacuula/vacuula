@@ -2,6 +2,7 @@ from __future__ import annotations
 import logging
 from vacuula_server.conn import Gen2Gen3Conn
 from vacuula_server.gen3.commands import send_chunk, build_command
+from vacuula_server.gen3 import disabled_boundaries
 from vacuula_server.env import GEN3_PORT, GEN4_PORT, HA_INGRESS
 from vacuula_server.constants import APP_VERSION, MAPS_DIR, MINIMUM_INSTALLER_VERSION
 from vacuula_server.gen4.app import demote_floorplan
@@ -292,6 +293,7 @@ def post_robot_command(req: RouterHandler, serial: str) -> None:
 
     conn = robot_connections[serial]
     slot = PendingRequest()
+    pending_disabled = None
     if (conn.gen == Generation.GEN4):
         # gen4
         req_id, err = robot_send_request(conn, data, slot)
@@ -300,7 +302,9 @@ def post_robot_command(req: RouterHandler, serial: str) -> None:
             return
     elif (conn.gen == Generation.GEN3) and isinstance(conn.conn, Gen2Gen3Conn):
         # gen3
-        req_id, msg = build_command(serial, data)
+        # Disabled no-go lines stay on the server; the robot would obey them anyway (#95).
+        to_send, pending_disabled = disabled_boundaries.prepare_command(data)
+        req_id, msg = build_command(serial, to_send)
         pending_requests[str(req_id)] = slot
         logger.debug("Sending command to robot %s: %s", serial, data)
         try:
@@ -317,7 +321,13 @@ def post_robot_command(req: RouterHandler, serial: str) -> None:
     slot.event.wait(COMMAND_TIMEOUT_S)
     pending_requests.pop(key, None)
     if slot.event.is_set():
-        _send_quietly(lambda: req.send_response_data(slot.content, True, slot.status))
+        content = slot.content
+        if conn.gen == Generation.GEN3:
+            try:
+                content = disabled_boundaries.handle_reply(serial, data, pending_disabled, slot.status, content)
+            except Exception:
+                logger.exception("Failed to handle disabled boundaries for %s", serial)
+        _send_quietly(lambda: req.send_response_data(content, True, slot.status))
     else:
         _send_quietly(lambda: req.send_error_response(504, "Robot did not answer in time"))
     

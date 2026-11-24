@@ -408,6 +408,7 @@ export default () => {
                             SetReturnFromEditMode(mode)
                         }}
                         onCleanZone={(zone) => cleanZone(zone)}
+                        onToggleNoGo={toggleNoGo}
                     />
                 )}
 
@@ -468,6 +469,7 @@ interface BoundaryDetailsProps {
     editBoundary: (id: string) => void
     deleteBoundary: (id: string) => void
     onCleanZone: (boundary: Zone) => void
+    onToggleNoGo: (boundary: NoGoLine | Zone) => void
 }
 
 const BoundaryDetails = (props: BoundaryDetailsProps) => {
@@ -487,7 +489,7 @@ const BoundaryDetails = (props: BoundaryDetailsProps) => {
                     </div>
                     {(props.map && 'promoted' in props.map ? props.map.promoted : true) && (
                         <>
-                            {(props.boundary.type === 'polyline' || props.boundary.function === 'nogo') && (<Input type="switch" skipSection={true} value={props.boundary.enabled} onChange={(value) => props.boundary.enabled = value} />)}
+                            {(props.boundary.type === 'polyline' || props.boundary.function === 'nogo') && (<Input type="switch" skipSection={true} value={props.boundary.enabled} onChange={() => props.onToggleNoGo(props.boundary)} />)}
                             {props.boundary.type === 'polygon' && ('function' in props.boundary ? props.boundary.function === 'cleaning' : true) && (<Button style='primary' disabled={!props.docked} text={t('map.cleanZone')} onClick={() => props.onCleanZone(props.boundary as Zone)} />)}
                         </>
                     )}
