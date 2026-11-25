@@ -8,7 +8,6 @@ export interface ScheduleEvent {
     boundaryId?: string // Zone cleaning
     boundary?: { id: string, name: string } // Returned by getSchedule
     mapId?: string
-    boundaryIds?: string[] // Several zones, in cleaning order (not tried on a robot yet)
 }
 
 export interface GetSchedule {

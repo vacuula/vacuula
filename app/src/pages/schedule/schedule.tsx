@@ -39,15 +39,15 @@ export default () => {
     const zoneOptions = enabledMaps
         .flatMap(m => getCachedZones(robot.serial, m.id).map(z => ({ value: z.id, mapId: m.id, label: enabledMaps.length > 1 ? `${m.name} - ${z.name}` : z.name })))
 
-    // New slot form: several days at once (one robot event per day), zones in order.
+    // New slot form: several days at once (one robot event per day) and at most
+    // one zone: a robot event keeps a single boundaryId.
     const [newDays, setNewDays] = useState<RobotDay[]>([])
     const [newTime, setNewTime] = useState('10:00')
     const [newMode, setNewMode] = useState<CleaningMode>(CleaningMode.ECO)
-    const [newZones, setNewZones] = useState<string[]>([])
+    const [newZone, setNewZone] = useState<string>()
     const [formError, setFormError] = useState<string>()
     const toggleDay = (d: RobotDay) => setNewDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d])
-    const zoneMap = newZones.length ? zoneOptions.find(o => o.value === newZones[0])?.mapId : undefined
-    const toggleNewZone = (id: string) => setNewZones(prev => prev.includes(id) ? prev.filter(z => z !== id) : prev.length >= 16 ? prev : [...prev, id])
+    const toggleNewZone = (id: string) => setNewZone(prev => prev === id ? undefined : id)
 
 
     const getSchedule = () => {
@@ -115,9 +115,12 @@ export default () => {
                     </div>
                     <div className={ui.rowTitle}>{t(`days.${dayKey(e.day)}`)}</div>
                     <div className={styles.pills}>
-                        <span className={styles.pill}>{e.boundaryIds?.length ? t('ui.zone', { name: e.boundaryIds.map(zoneName).join(' → ') })
-                            : zoneName(e.boundaryId) ? t('ui.zone', { name: zoneName(e.boundaryId) }) : t('ui.wholeHouse')}</span>
-                        <span className={styles.pill}>{e.mode === CleaningMode.ECO ? t('modes.eco') : t('modes.turbo')}</span>
+                        {/* getSchedule returns the zone as boundary {id, name}; a slot not reloaded yet only has boundaryId. */}
+                        <span className={styles.pill}>{(() => {
+                            const name = e.boundary?.name ?? zoneName(e.boundaryId ?? e.boundary?.id)
+                            return name ? t('ui.zone', { name }) : t('ui.wholeHouse')
+                        })()}</span>
+                        <span className={styles.pill}>{e.mode === CleaningMode.ECO ? t('modes.eco') : t('modes.normal')}</span>
                     </div>
                 </div>
             ))}
@@ -144,7 +147,8 @@ export default () => {
 
                     <button type="button" className={ui.primary} onClick={() => {
                         if (newDays.length === 0) { setFormError(t('ui.pickDay')); return }
-                        const zones: Partial<ScheduleEvent> = newZones.length > 1 ? { boundaryIds: newZones } : newZones.length === 1 ? { boundaryId: newZones[0] } : {}
+                        const mapId = zoneOptions.find(o => o.value === newZone)?.mapId
+                        const zones: Partial<ScheduleEvent> = newZone ? { boundaryId: newZone, ...(mapId ? { mapId } : {}) } : {}
                         const added: ScheduleEvent[] = newDays.map(day => ({ day, startTime: newTime, mode: newMode, ...zones }))
                         GEN3_COMMANDS.setSchedule(robot.serial, [...added, ...schedule.events]).then(res => {
                             if ((res.data as { result?: string })?.result && (res.data as { result?: string }).result !== 'ok') {
@@ -152,7 +156,7 @@ export default () => {
                                 return
                             }
                             setDrawerOpen(false)
-                            setNewDays([]); setNewZones([]); setFormError(undefined)
+                            setNewDays([]); setNewZone(undefined); setFormError(undefined)
                         }).catch(() => setFormError(t('ui.scheduleSaveFailed'))).finally(() => getSchedule())
                     }}>
                         {t('ui.saveSlots', { count: Math.max(newDays.length, 1) })}
@@ -182,19 +186,18 @@ export default () => {
                     <SectionLabel>{t('ui.power')}</SectionLabel>
                     <Segmented label={t('ui.power')} value={newMode} onChange={setNewMode} options={[
                         { value: CleaningMode.ECO, label: t('modes.eco') },
-                        { value: CleaningMode.NORMAL, label: t('modes.turbo') },
+                        { value: CleaningMode.NORMAL, label: t('modes.normal') },
                     ]} />
 
                     {zoneOptions.length > 0 && (
                         <>
-                            <SectionLabel badge={t('ui.multizone')}>{t('ui.zonesOrder')}</SectionLabel>
+                            <SectionLabel>{t('ui.zonePick')}</SectionLabel>
                             <div className={ui.grid2}>
-                                {zoneOptions.filter(o => !zoneMap || o.mapId === zoneMap).map(o => {
-                                    const order = newZones.indexOf(o.value) + 1
-                                    return <Chip key={o.value} row label={o.label} order={order || null} active={order > 0} onClick={() => toggleNewZone(o.value)} />
-                                })}
+                                {zoneOptions.map(o => (
+                                    <Chip key={o.value} row label={o.label} active={newZone === o.value} onClick={() => toggleNewZone(o.value)} />
+                                ))}
                             </div>
-                            <div className={ui.info}>{newZones.length > 1 ? t('ui.scheduleMultiTest') : t('ui.wholeHouseHint')}</div>
+                            <div className={ui.info}>{t('ui.wholeHouseHint')}</div>
                         </>
                     )}
                 </div>
