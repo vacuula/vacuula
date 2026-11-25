@@ -50,6 +50,7 @@ export interface Run {
     state: RunStates
     stats: Stats
     settings: RunSettings
+    autonomous_dock?: boolean // the robot went back to its base by itself
 }
 
 export interface Stats {

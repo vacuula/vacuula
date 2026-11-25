@@ -29,7 +29,6 @@ export default () => {
     const [schedule, setSchedule] = useState<GetSchedule>()
     const [drawerOpen, setDrawerOpen] = useState(false)
 
-    const offset = serverInfo.utc_offset_minutes ?? 0
     const { data: persistentMaps } = usePersistentMaps()
 
     useEffect(() => {
@@ -44,7 +43,7 @@ export default () => {
 
     const [scheduleForm, SetScheduleForm] = useState<ScheduleEvent>({
         startTime: '',
-        day: -1,
+        day: -1 as RobotDay, // not picked yet
         mode: 0
     })
 

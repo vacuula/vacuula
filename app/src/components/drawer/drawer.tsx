@@ -97,14 +97,33 @@ export default function Drawer(props: DrawerProps) {
         setDrawerHeight(props.open ? window.innerHeight * (props.openHeightPercent / 100) : (props.handle ? HANDLE_HEIGHT : 0))
     }, [props.openHeightPercent])
 
-    // if (!props.handle && !props.open) return null
+    // The sheet keeps a fixed height and slides with a transform: animating
+    // `height` re-laid out the whole content (maps redrew on every frame).
+    // While dragged above its open height it grows to follow the finger.
+    const openHeight = window.innerHeight * (props.openHeightPercent / 100)
+    const frameHeight = isDraggingDrawer ? Math.max(openHeight, drawerHeight) : Math.max(openHeight, HANDLE_HEIGHT)
+    const offset = Math.max(0, frameHeight - drawerHeight)
 
+    // Content stays mounted until the closing slide has finished.
+    const [contentMounted, setContentMounted] = useState(drawerHeight > 100)
+    useEffect(() => {
+        if (drawerHeight > 100) setContentMounted(true)
+    }, [drawerHeight])
+
+    // The clip frame sits at the bottom of the (non-scrolling) content area and
+    // hides whatever slid below it, so a closed sheet never makes the page
+    // taller or reachable by scrolling. It lets touches through to the page.
     return (
+        <div className={styles.clip} style={{ height: `${frameHeight}px` }}>
         <div
             className={styles.drawer}
+            onTransitionEnd={(e) => {
+                if (e.target === e.currentTarget && drawerHeight <= 100) setContentMounted(false)
+            }}
             style={{
-                height: `${drawerHeight}px`,
-                transition: isDraggingDrawer ? 'none' : 'height 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                height: `${frameHeight}px`,
+                transform: `translateY(${offset}px)`,
+                transition: isDraggingDrawer ? 'none' : 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
                 borderTop: (props.handle || props.open) ? '2px solid var(--border-strong)' : ''
             }}>
 
@@ -126,11 +145,12 @@ export default function Drawer(props: DrawerProps) {
                 </div>
             )}
 
-            {drawerHeight > 100 && (
+            {(drawerHeight > 100 || contentMounted) && (
                 <div className={styles.drawerContent}>
                     {props.children}
                 </div>
             )}
+        </div>
         </div>
     )
 }

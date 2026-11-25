@@ -1,18 +1,12 @@
 import styles from './runs.module.scss'
-import { useRef, useEffect, useState, useCallback } from 'react'
+import { useRef, useEffect, useState } from 'react'
 import Drawer from '../../components/drawer/drawer'
 
-import type { GetSchedule, ScheduleEvent } from './types'
-import { FaPlus, FaTimes, FaUndo, FaPen, FaCheckCircle, FaCircle, FaTrash } from 'react-icons/fa'
-import Input from '../../components/input/input'
-import { PiBoundingBox } from "react-icons/pi";
-import { biEnum } from '../../types/.helpers'
 import Button from '../../components/button/button'
 import { GEN3_COMMANDS } from '../../http/gen3'
 import { Http } from '../../http'
 import { useApp } from '../../context/useApp'
-import type { UseState } from '../map/types'
-import { Neato, RobotType } from '../../types'
+import { Neato } from '../../types'
 import { IoMdTime, IoMdCheckmarkCircle, IoMdCloseCircleOutline } from "react-icons/io";
 import { SlEnergy } from "react-icons/sl";
 import Map from '../../components/map/map'
@@ -47,6 +41,16 @@ export default () => {
     useEffect(() => {
         setDrawerOpen(!!selectedCleaning);
     }, [selectedCleaning])
+
+    // The run map is decoded and drawn only once the sheet has finished
+    // sliding up (0.4 s), so the opening animation stays smooth.
+    const [mapReady, setMapReady] = useState(false)
+    useEffect(() => {
+        setMapReady(false)
+        if (!drawerOpen) return
+        const timer = setTimeout(() => setMapReady(true), 450)
+        return () => clearTimeout(timer)
+    }, [drawerOpen, selectedCleaning?.id])
 
     if (!cleanings) return
 
@@ -109,7 +113,9 @@ export default () => {
 
                     <hr style={{ width: '100%' }} />
 
-                    <Map mapId={selectedCleaning?.id || ''} runId={selectedCleaning?.id || ''} />
+                    {mapReady
+                        ? <Map mapId={selectedCleaning?.id || ''} runId={selectedCleaning?.id || ''} />
+                        : <div className={styles.mapPlaceholder} />}
 
                     {/* TODO: Explain the differnet colors meaning */}
 

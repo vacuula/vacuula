@@ -52,6 +52,8 @@
 
 .content {
     grid-row: 4 / 38;
+    // Bottom sheets anchor here: the pages inside scroll, this box does not.
+    position: relative;
     overflow: auto;
     display: flex;
     height: 100%;

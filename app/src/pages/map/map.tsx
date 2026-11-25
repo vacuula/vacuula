@@ -9,13 +9,13 @@ import { Http } from '../../http'
 import { Neato, RobotType, type Robot } from '../../types'
 
 import MapCanvas, { type MapMode } from './MapCanvas'
+import type { ExtraDrawFn } from '../../components/map/useMap'
 import { GEN4_COMMANDS } from '../../http/gen4'
 import { useRobot } from '../../context/useRobot'
 import { usePersistentMaps } from '../../loaders/resources'
 import type { Floorplan } from '../../types/neato/gen4'
 import { v4 as uuidv4 } from 'uuid';
 import { useTranslation } from 'react-i18next'
-import i18n from '../../i18n'
 import { useGetPromotedFloorplan } from '../../utils/floormaps'
 import type { NoGoLine, Point, UseState, Zone } from '../../components/map/types'
 import { drawZones, drawNoGoLines, drawBase, drawCrosshair, drawInProgressPolyline, onDockImageReady } from '../../components/map/drawingFunctions'
@@ -77,13 +77,13 @@ export default () => {
         }
     }, [persistentMaps])
 
-    const extraDraw = useCallback((ctx, canvas, currentZoom, currentOffset, mapSize) => {
+    const extraDraw = useCallback<ExtraDrawFn>((ctx, canvas, currentZoom, currentOffset, mapSize) => {
         const showBoundaries = mode === 'boundary-edit'
             ? boundaries.filter(b => b.id !== activeBoundaryId)
             : boundaries
 
         drawZones(ctx, showBoundaries.filter(b => b.type === 'polygon'), currentZoom, currentOffset, mapSize)
-        drawNoGoLines(ctx, showBoundaries.filter(b => b.type === 'polyline'), currentZoom, currentOffset, mapSize)
+        drawNoGoLines(ctx, showBoundaries.filter((b): b is NoGoLine => b.type === 'polyline'), currentZoom, currentOffset, mapSize)
 
         // TODO: rework this base drawing, very hacky for quick release...
         const map = persistentMaps?.find(p => p.id === persistentMap)
@@ -163,7 +163,7 @@ export default () => {
                     ...boundary,
                     relevancy: calcRelevancy(boundary.vertices)
                 }
-                : boundary
+                : { ...boundary, type: 'polyline' as const }
         );
         GEN3_COMMANDS.setMapBoundaries(robot.serial, persistentMap, updatedBoundaries).catch(() => {
             getMapBoundaries();

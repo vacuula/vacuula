@@ -34,7 +34,7 @@ export function getWorldCoords(screenX: number, screenY: number, offset: { x: nu
     ]
 }
 
-export function getCrosshairWorldCoords(canvasRef: React.RefObject<HTMLCanvasElement>, offset: { x: number; y: number }, zoom: number, mapSize: { height: number, width: number }): Point {
+export function getCrosshairWorldCoords(canvasRef: React.RefObject<HTMLCanvasElement | null>, offset: { x: number; y: number }, zoom: number, mapSize: { height: number, width: number }): Point {
     const canvas = canvasRef.current
     if (!canvas) return [0, 0]
     // Center of screen in canvas coordinates
