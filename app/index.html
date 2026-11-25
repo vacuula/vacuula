@@ -6,8 +6,9 @@
     <meta name="theme-color" content="#0f1113" />
     <script>
       // Applies the stored theme before any stylesheet or bundle loads, so a
-      // reload never flashes the wrong background. Keys and background values
-      // must match src/theme/index.ts and src/theme/theme.css.
+      // reload never flashes the wrong background. Keys must match
+      // src/theme/index.ts; backgrounds must match --bg in src/theme/theme.css
+      // and src/theme/styles/<id>.css.
       (function () {
         var mode = 'dark', accent = 'mint', style = 'menthe';
         try {

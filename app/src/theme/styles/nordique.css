@@ -6,8 +6,8 @@
  * Applies with data-style="nordique" on <html>. The dark and soft modes share
  * the dark palette. Selectors carry [data-theme] so they win over the accent
  * blocks of theme.css (same specificity, this file is loaded after it).
- * Page backgrounds must match STYLE_BACKGROUND in src/theme/index.ts and the
- * script in index.html.
+ * Page backgrounds (--bg) must match the script in index.html, which applies
+ * them before any CSS loads.
  */
 @import '@fontsource/dm-sans/400.css';
 @import '@fontsource/dm-sans/500.css';
