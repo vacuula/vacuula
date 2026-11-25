@@ -142,7 +142,7 @@ button.rowCard {
 .grid3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .grid4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 
-// ── Chips (quick actions, zones, routines) ──
+// ── Chips (quick actions, zones) ──
 .chip {
     position: relative;
     min-height: 5.2rem;

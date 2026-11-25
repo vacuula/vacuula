@@ -47,7 +47,7 @@ export default () => {
 
     const [mode, setMode] = useState<MapMode>('maps')
 
-    // Zones picked for cleaning, in cleaning order (gen3 takes up to 16 of one map).
+    // Zones picked for cleaning, in cleaning order. Gen3 cleans one zone per run.
     const [selectedZones, setSelectedZones] = useState<string[]>([])
     // Edit mode ("Edit zones"): boundaries are ticked, then edited or deleted together.
     const [managing, setManaging] = useState(false)
@@ -101,7 +101,7 @@ export default () => {
 
         if (mode === 'boundary-edit') drawZones(ctx, showBoundaries.filter(b => b.type === 'polygon'), currentZoom, currentOffset, mapSize)
         else drawZonesLabelled(ctx, showBoundaries.filter((b): b is Zone => b.type === 'polygon'), currentZoom, currentOffset, mapSize,
-            { picked: managing ? checked : selectedZones, numbered: !managing })
+            { picked: managing ? checked : selectedZones, numbered: !managing && robot.type !== RobotType.NeatoGen3 })
         drawNoGoLines(ctx, showBoundaries.filter((b): b is NoGoLine => b.type === 'polyline'), currentZoom, currentOffset, mapSize)
 
         // TODO: rework this base drawing, very hacky for quick release...
@@ -283,15 +283,16 @@ export default () => {
         }
     }
 
+    // Gen3: picking a zone replaces the previous one (the robot ignores boundaryIds).
     const toggleZone = (id: string) => setSelectedZones(prev =>
-        prev.includes(id) ? prev.filter(z => z !== id) : prev.length >= 16 ? prev : [...prev, id])
+        prev.includes(id) ? prev.filter(z => z !== id)
+            : robot.type === RobotType.NeatoGen3 ? [id] : [...prev, id])
 
     // TODO: user should be able to customize what modes etc
     const cleanZones = async (zoneIds: string[]) => {
         if (!persistentMap || zoneIds.length === 0) return
         if (robot.type === RobotType.NeatoGen3) {
-            if (zoneIds.length === 1) GEN3_COMMANDS.startCleaningZone(robot.serial, persistentMap, zoneIds[0], getGen3CleaningMode(), getGen3NavigationMode())
-            else GEN3_COMMANDS.startCleaningZones(robot.serial, persistentMap, zoneIds, getGen3CleaningMode(), getGen3NavigationMode())
+            GEN3_COMMANDS.startCleaningZone(robot.serial, persistentMap, zoneIds[0], getGen3CleaningMode(), getGen3NavigationMode())
             return;
         }
         const promotedFloorplan = await getPromotedFloorplan();
@@ -564,11 +565,10 @@ export default () => {
 
                         {editable && (
                             <>
-                                <SectionLabel badge={!managing && robot.type === RobotType.NeatoGen3 ? t('ui.multizone') : undefined}
-                                    right={managing
+                                <SectionLabel right={managing
                                         ? <button type="button" className={styles.doneButton} onClick={exitManage}>{t('ui.done')}</button>
                                         : cleaningZones.length > 0 ? <span className={ui.small}>{t('ui.longPressHint')}</span> : undefined}>
-                                    {managing ? t('ui.checkedCount', { count: checked.length }) : t('ui.zonesOrder')}
+                                    {managing ? t('ui.checkedCount', { count: checked.length }) : robot.type === RobotType.NeatoGen3 ? t('ui.zonePick') : t('ui.zonesOrder')}
                                 </SectionLabel>
                                 <div className={`${ui.grid2} ${styles.zoneGrid}`}>
                                     {cleaningZones.map(zone => {
@@ -576,7 +576,7 @@ export default () => {
                                         if (managing) return <Chip key={zone.id} row label={zone.name} color={color}
                                             checked={checked.includes(zone.id)} onClick={() => toggleChecked(zone.id)} />
                                         const order = selectedZones.indexOf(zone.id) + 1
-                                        return <Chip key={zone.id} row label={zone.name} color={color} order={order || null} active={order > 0}
+                                        return <Chip key={zone.id} row label={zone.name} color={color} order={robot.type === RobotType.NeatoGen3 ? null : order || null} active={order > 0}
                                             onClick={() => toggleZone(zone.id)} onLongPress={() => enterManage(zone.id)} />
                                     })}
                                     {(managing || cleaningZones.length === 0) && <Chip row dashed label={t('ui.addZone')} onClick={() => openEdit(uuidv4())} />}

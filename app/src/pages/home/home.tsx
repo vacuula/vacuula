@@ -1,7 +1,7 @@
 import styles from './home.module.scss'
 import { useMascot } from '../../mascot'
 import { MdError, MdWarning } from 'react-icons/md'
-import { LuBell, LuMap, LuHouse, LuCrosshair, LuBrush, LuShieldCheck, LuSparkles, LuLeaf, LuFan, LuGauge, LuCircleDot, LuPlay, LuPause, LuSquare, LuClock, LuChevronRight, LuTrash2 } from 'react-icons/lu'
+import { LuBell, LuMap, LuHouse, LuCrosshair, LuBrush, LuShieldCheck, LuSparkles, LuLeaf, LuFan, LuGauge, LuCircleDot, LuPlay, LuPause, LuSquare, LuClock, LuChevronRight } from 'react-icons/lu'
 import { CleaningCategory, CleaningMode, CleaningNavigationMode } from '../../types/neato/gen3/state'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
@@ -27,7 +27,6 @@ import { getGen3CleaningMode, getGen3NavigationMode, getGen4CleaningMode, getGen
 import { useTheme } from '../../theme'
 import { Chip, SectionLabel, Segmented, ui } from '../../components/ui/ui'
 import { formatMinutes, runArea, runBattery, runSeconds, runStart, sortRunsNewestFirst, type AnyRun } from '../../utils/runs'
-import { sameZones, useRoutines } from '../../utils/routines'
 
 
 interface AlertCardProps {
@@ -104,8 +103,7 @@ function BatteryRing({ percent, caption }: { percent: number, caption: string })
 // (animation duration x iteration count) or the class is removed mid-swing.
 const BELL_MS = 5 * 2500;
 
-// Gen3 multi-zone: up to 16 zones of the same map, cleaned in the order they were picked.
-const GEN3_MAX_ZONES = 16
+// Gen3 cleans one zone per run: the robot accepts boundaryIds but ignores them.
 const ZONE_SEP = '||:||'
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -118,9 +116,7 @@ export default function Home() {
     const { formatLength, formatArea } = useUnits()
     const { mascot } = useMascot()
     const { style } = useTheme()
-    const { routines, save: saveRoutine, remove: removeRoutine } = useRoutines(robot.serial)
     const [categoryDrawerOpen, setCategoryDrawerOpen] = useState(false)
-    const [routineName, setRoutineName] = useState('')
 
     // TODO: make functions of this to fetch easily etc
     const [gen3__cleaningMode, gen3__setCleaningMode] = useState<CleaningMode>(getGen3CleaningMode())
@@ -179,32 +175,13 @@ export default function Home() {
             label: enabledMaps.length > 1 ? `${m.name} - ${z.name}` : z.name,
         })))
 
-    // Once a zone is picked, only the zones of its map stay selectable.
-    const selectedMapId = selectedZones[0]?.split(ZONE_SEP)[0]
-    const gen3ZoneOptions = zoneOptions
-        .filter(o => !selectedMapId || o.value.startsWith(`${selectedMapId}${ZONE_SEP}`))
-        .filter(o => selectedZones.length < GEN3_MAX_ZONES || selectedZones.includes(o.value))
-
     const gen4Zones = boundaries.filter(b => b.type === 'polygon' && b.function === 'cleaning')
 
+    // Gen3: picking a zone replaces the previous one. Gen4: zones add up, in order.
     const toggleZone = (value: string) => setSelectedZones(prev =>
-        prev.includes(value) ? prev.filter(v => v !== value) : [...prev, value])
+        prev.includes(value) ? prev.filter(v => v !== value)
+            : robot.type === RobotType.NeatoGen3 ? [value] : [...prev, value])
 
-    // Routines only reference zones that still exist.
-    const knownZones = new Set(zoneOptions.map(o => o.value))
-    const usableRoutines = robot.type === RobotType.NeatoGen3 ? routines.filter(r => r.zones.every(z => knownZones.has(z))) : []
-    const currentRoutine = usableRoutines.find(r => sameZones(r.zones, selectedZones))
-    // Unnamed routines are called after their zones, in cleaning order.
-    const defaultRoutineName = selectedZones.map(v => zoneOptions.find(o => o.value === v)?.label ?? '').filter(Boolean).join(' + ')
-
-    // Deleting a routine takes a second tap within a few seconds.
-    const [confirmRoutineDelete, setConfirmRoutineDelete] = useState(false)
-    useEffect(() => setConfirmRoutineDelete(false), [currentRoutine?.id])
-    useEffect(() => {
-        if (!confirmRoutineDelete) return
-        const timer = setTimeout(() => setConfirmRoutineDelete(false), 4000)
-        return () => clearTimeout(timer)
-    }, [confirmRoutineDelete])
 
     if (!isDocked(robot) && gen3__cleaningCategory === CleaningCategory.MAP) gen3__setCleaningCategory(CleaningCategory.HOUSE)
 
@@ -222,10 +199,8 @@ export default function Home() {
             if (gen3__cleaningCategory === CleaningCategory.MAP && enabledMaps.length === 0) cat = CleaningCategory.HOUSE; // fallback to house if no maps exist
 
             if (cat === CleaningCategory.MAP && selectedZones.length > 0 && isDocked(robot)) {
-                const [mapId] = selectedZones[0].split(ZONE_SEP)
-                const zoneIds = selectedZones.map(z => z.split(ZONE_SEP)[1])
-                if (zoneIds.length === 1) GEN3_COMMANDS.startCleaningZone(robot.serial, mapId, zoneIds[0], gen3__cleaningMode, gen3__navigationMode)
-                else GEN3_COMMANDS.startCleaningZones(robot.serial, mapId, zoneIds, gen3__cleaningMode, gen3__navigationMode)
+                const [mapId, zoneId] = selectedZones[0].split(ZONE_SEP)
+                GEN3_COMMANDS.startCleaningZone(robot.serial, mapId, zoneId, gen3__cleaningMode, gen3__navigationMode)
                 return
             }
             GEN3_COMMANDS.startCleaning(robot.serial, cat, gen3__cleaningMode, gen3__navigationMode)
@@ -260,7 +235,7 @@ export default function Home() {
     const powerOptions = robot.type === RobotType.NeatoGen3
         ? [
             { value: CleaningMode.ECO as number | string, label: t('modes.eco'), icon: <LuLeaf size={22} /> },
-            { value: CleaningMode.NORMAL, label: t('modes.turbo'), icon: <LuFan size={22} /> },
+            { value: CleaningMode.NORMAL, label: t('modes.normal'), icon: <LuFan size={22} /> },
         ]
         : [
             { value: Neato.Gen4.CleaningMode.ECO as number | string, label: t('modes.eco'), icon: <LuLeaf size={22} /> },
@@ -394,42 +369,6 @@ export default function Home() {
                 <LuChevronRight size={18} className={ui.chev} aria-hidden="true" />
             </button>
 
-            {/* ── Routines (gen3 zone sets) ── */}
-            {robot.type === RobotType.NeatoGen3 && zoneOptions.length > 0 && (
-                <>
-                    <div className={styles.routinesHead}>
-                    <SectionLabel right={currentRoutine && (
-                        <button type="button" className={`${styles.routineDelete} ${confirmRoutineDelete ? styles.routineDeleteConfirm : ''}`}
-                            onClick={() => {
-                                if (!confirmRoutineDelete) { setConfirmRoutineDelete(true); return }
-                                removeRoutine(currentRoutine.id)
-                                setSelectedZones([])
-                                setConfirmRoutineDelete(false)
-                            }}>
-                            <LuTrash2 size={14} aria-hidden="true" />
-                            {confirmRoutineDelete ? t('ui.confirm') : t('ui.deleteNamed', { name: currentRoutine.name })}
-                        </button>
-                    )}>{t('ui.routines')}</SectionLabel>
-                    </div>
-                    <div className={ui.grid3}>
-                        {usableRoutines.map(r => (
-                            <Chip key={r.id} label={r.name} sub={t('ui.zones', { count: r.zones.length })}
-                                active={currentRoutine?.id === r.id}
-                                onClick={() => {
-                                    gen3__setCleaningCategory(CleaningCategory.MAP)
-                                    setSelectedZones(currentRoutine?.id === r.id ? [] : r.zones)
-                                }} />
-                        ))}
-                        <Chip label={t('ui.newRoutine')} sub={t('ui.create')} dashed onClick={() => {
-                            gen3__setCleaningCategory(CleaningCategory.MAP)
-                            setCategoryDrawerOpen(true)
-                        }} />
-                    </div>
-                    {/* Routines stay visible off the base; only starting needs the base. */}
-                    {!isDocked(robot) && <div className={ui.small}>{t('ui.putOnBase')}</div>}
-                </>
-            )}
-
             {/* ── Quick settings ── */}
             <div className={ui.grid4}>
                 <Chip
@@ -503,27 +442,14 @@ export default function Home() {
                     {/* Zones */}
                     {gen3__cleaningCategory === CleaningCategory.MAP && isDocked(robot) && robot.type === RobotType.NeatoGen3 && zoneOptions.length > 0 && (
                         <>
-                            <SectionLabel badge={t('ui.multizone')}>{t('ui.zonesOrder')}</SectionLabel>
+                            <SectionLabel>{t('ui.zonePick')}</SectionLabel>
                             <div className={ui.grid2}>
-                                {gen3ZoneOptions.map(o => {
-                                    const order = selectedZones.indexOf(o.value) + 1
-                                    return <Chip key={o.value} row label={o.label} order={order || null} active={order > 0} onClick={() => toggleZone(o.value)} />
-                                })}
+                                {zoneOptions.map(o => (
+                                    <Chip key={o.value} row label={o.label} active={selectedZones.includes(o.value)} onClick={() => toggleZone(o.value)} />
+                                ))}
                             </div>
                             <div className={ui.info}>{t('ui.zonesHelp')}</div>
 
-                            {selectedZones.length > 0 && (currentRoutine ? (
-                                <button type="button" className={ui.ghost} onClick={() => removeRoutine(currentRoutine.id)}>{t('ui.deleteRoutine')} · {currentRoutine.name}</button>
-                            ) : (
-                                <div style={{ display: 'flex', gap: '0.8rem' }}>
-                                    <input className={ui.textInput} placeholder={defaultRoutineName} aria-label={t('ui.routineName')}
-                                        value={routineName} onChange={e => setRoutineName(e.target.value)} />
-                                    <button type="button" className={ui.ghost} onClick={() => {
-                                        saveRoutine(routineName.trim() || defaultRoutineName, selectedZones)
-                                        setRoutineName('')
-                                    }}>{t('ui.saveRoutine')}</button>
-                                </div>
-                            ))}
                         </>
                     )}
 
