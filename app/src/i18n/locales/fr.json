@@ -1,5 +1,12 @@
 {
     "String-version": "1",
+    "nav": {
+        "runs": "Historique",
+        "map": "Carte",
+        "home": "Accueil",
+        "schedule": "Planning",
+        "settings": "Réglages"
+    },
     "common": {
         "save": "Enregistrer",
         "cancel": "Annuler",
@@ -181,6 +188,9 @@
         "appSettings": "Paramètres de l'application",
         "appLanguage": "Langue de l'application",
         "theme": "Theme",
+        "style": "Style",
+        "style_menthe": "Menthe",
+        "style_nordique": "Nordique",
         "theme_dark": "Sombre",
         "theme_soft": "Sombre (doux)",
         "theme_light": "Clair",

@@ -1,5 +1,12 @@
 {
     "String-version": "3",
+    "nav": {
+        "runs": "Verlauf",
+        "map": "Karte",
+        "home": "Start",
+        "schedule": "Zeitplan",
+        "settings": "Einstellungen"
+    },
     "common": {
         "save": "Speichern",
         "cancel": "Abbrechen",
@@ -189,6 +196,9 @@
         "appSettings": "App-Einstellung",
         "appLanguage": "App-Sprache",
         "theme": "Theme",
+        "style": "Stil",
+        "style_menthe": "Minze",
+        "style_nordique": "Nordisch",
         "theme_dark": "Dunkel",
         "theme_soft": "Dunkel (light)",
         "theme_light": "Hell",

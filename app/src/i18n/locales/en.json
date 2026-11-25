@@ -1,5 +1,12 @@
 {
     "String-version": "4",
+    "nav": {
+        "runs": "History",
+        "map": "Map",
+        "home": "Home",
+        "schedule": "Schedule",
+        "settings": "Settings"
+    },
     "common": {
         "save": "Save",
         "cancel": "Cancel",
@@ -191,6 +198,9 @@
         "appSettings": "App settings",
         "appLanguage": "App language",
         "theme": "Theme",
+        "style": "Style",
+        "style_menthe": "Mint",
+        "style_nordique": "Nordic",
         "theme_dark": "Dark",
         "theme_soft": "Dark (soft)",
         "theme_light": "Light",

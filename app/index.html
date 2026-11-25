@@ -1,25 +1,29 @@
 <!doctype html>
-<html lang="en" data-theme="dark" data-accent="mint">
+<html lang="en" data-theme="dark" data-accent="mint" data-style="menthe">
   <head>
     <meta charset="UTF-8" />
     <meta name="color-scheme" content="dark light" />
     <meta name="theme-color" content="#0f1113" />
     <script>
       // Applies the stored theme before any stylesheet or bundle loads, so a
-      // reload never flashes the wrong background. Keys and background values
-      // must match src/theme/index.ts and src/theme/theme.css.
+      // reload never flashes the wrong background. Keys must match
+      // src/theme/index.ts; backgrounds must match --bg in src/theme/theme.css
+      // and src/theme/styles/<id>.css.
       (function () {
-        var mode = 'dark', accent = 'mint';
+        var mode = 'dark', accent = 'mint', style = 'menthe';
         try {
           mode = localStorage.getItem('vacuula.theme') || mode;
           accent = localStorage.getItem('vacuula.accent') || accent;
+          style = localStorage.getItem('vacuula.style') || style;
         } catch (e) {}
         var bgs = { dark: '#0f1113', soft: '#25292e', light: '#f4f6f5' };
+        var styleBgs = { nordique: { dark: '#111513', soft: '#111513', light: '#f7f8f7' } };
         if (!bgs[mode]) mode = 'dark';
-        var bg = bgs[mode];
+        var bg = (styleBgs[style] && styleBgs[style][mode]) || bgs[mode];
         var html = document.documentElement;
         html.setAttribute('data-theme', mode);
         html.setAttribute('data-accent', accent);
+        html.setAttribute('data-style', style);
         html.style.backgroundColor = bg;
         html.style.colorScheme = mode === 'light' ? 'light' : 'dark';
         var meta = document.querySelector('meta[name="theme-color"]');
