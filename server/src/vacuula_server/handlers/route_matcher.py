@@ -18,6 +18,7 @@ import vacuula_server.gen4.app as gen4
 from vacuula_server.gen3.handlers.beehive import post_links, persistent_maps, upload_init, upload_finish
 from vacuula_server.gen3.handlers.nucleo import nucleo_init
 from vacuula_server.gen3.handlers.s3_upload import s3_upload
+from vacuula_server.gen3.handlers.reports import post_life_stats, post_push_notification
 
 Handler = Callable[..., None]
 
@@ -34,6 +35,8 @@ BEEHIVE_ROUTES: List[Tuple[str, str, Handler]] = [
     ("POST", r"/(.+)/upload_jobs", upload_init),
     ("GET", "/persistent_maps", persistent_maps),
     ("PUT", r"/(.+)/upload_jobs/(.+)", upload_finish),
+    ("POST", r"/runs/([^/]+)/life_stats", post_life_stats),
+    ("POST", "/push_notifications", post_push_notification),
 ]
 
 APP_ROUTES: List[Tuple[str, str, Handler]] = [
