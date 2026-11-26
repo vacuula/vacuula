@@ -37,6 +37,9 @@ interface MapCanvasProps {
 }
 
 // Editing gestures on the boundary being drawn (screen pixels / ms).
+const LOUPE_SIZE = 120         // touch: magnifier shown above the finger while a point moves
+const LOUPE_ZOOM = 2
+const LOUPE_GAP = 36           // between the finger and the bottom of the magnifier
 const GRAB_RING_MS = 450       // ring shown when the whole shape is grabbed
 const HANDLE_HIT_PX = 24       // a press this close to a point drags that point
 const OUTLINE_HIT_PX = 20      // a long press this close to the outline grabs the shape
@@ -85,6 +88,10 @@ export default function MapCanvas({
     // Set while the whole shape is held: where and when it was grabbed (for the
     // grab ring), and drives the "moving" animation drawn below.
     const shapeGrab = useRef<{ at: number, x: number, y: number } | null>(null)
+    // Touch: where the moved point is (canvas pixels). The finger hides it, so a
+    // magnified copy of the map around it is shown above the finger.
+    const loupePos = useRef<{ x: number, y: number } | null>(null)
+    const loupeCanvas = useRef<HTMLCanvasElement>(null)
     const drawWithRubberBand = useCallback<ExtraDrawFn>((ctx, canvas, currentZoom, currentOffset, size) => {
         void redrawKey // redraw when the caller asks for it
         extraDraw?.(ctx, canvas, currentZoom, currentOffset, size)
@@ -120,6 +127,26 @@ export default function MapCanvas({
                 ctx.stroke()
             }
             ctx.restore()
+        }
+
+        // Magnifier: copy of the finished map around the moved point, zoomed in.
+        const loupe = loupeCanvas.current, pos = loupePos.current
+        const lctx = loupe?.getContext('2d')
+        if (loupe && pos && lctx) {
+            const src = LOUPE_SIZE / LOUPE_ZOOM
+            lctx.clearRect(0, 0, LOUPE_SIZE, LOUPE_SIZE)
+            lctx.save()
+            lctx.beginPath()
+            lctx.arc(LOUPE_SIZE / 2, LOUPE_SIZE / 2, LOUPE_SIZE / 2, 0, Math.PI * 2)
+            lctx.clip()
+            lctx.drawImage(canvas, pos.x - src / 2, pos.y - src / 2, src, src, 0, 0, LOUPE_SIZE, LOUPE_SIZE)
+            lctx.strokeStyle = '#ffffff'
+            lctx.lineWidth = 1.5
+            lctx.beginPath()
+            lctx.moveTo(LOUPE_SIZE / 2 - 12, LOUPE_SIZE / 2); lctx.lineTo(LOUPE_SIZE / 2 + 12, LOUPE_SIZE / 2)
+            lctx.moveTo(LOUPE_SIZE / 2, LOUPE_SIZE / 2 - 12); lctx.lineTo(LOUPE_SIZE / 2, LOUPE_SIZE / 2 + 12)
+            lctx.stroke()
+            lctx.restore()
         }
 
         const last = currentLinePoints[currentLinePoints.length - 1]
@@ -162,11 +189,17 @@ export default function MapCanvas({
     const draggedSincePress = useRef(false)
     const longPressTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
     const [grabbing, setGrabbing] = useState<EditDrag['kind'] | null>(null)
+    const [loupeAt, setLoupeAt] = useState<{ x: number, y: number } | null>(null)
+    const showLoupe = (at: { x: number, y: number } | null) => { loupePos.current = at; setLoupeAt(at) }
     // Keep redrawing while the shape is held, so its outline keeps moving.
     // draw() must get the current zoom and offset: its defaults are the ones of
     // the first render, which drew the map off-screen (a black canvas).
     const view = useRef({ zoom, offset })
     view.current = { zoom, offset }
+    useEffect(() => {
+        if (loupeAt) draw(view.current.zoom, view.current.offset)
+    }, [loupeAt !== null]) // eslint-disable-line react-hooks/exhaustive-deps
+
     useEffect(() => {
         if (grabbing !== 'shape') return
         const redraw = () => draw(view.current.zoom, view.current.offset)
@@ -215,6 +248,7 @@ export default function MapCanvas({
         if (done && draggedSincePress.current) remember(done.kind === 'vertex' ? done.before : done.original)
         drag.current = null
         shapeGrab.current = null
+        if (loupePos.current) showLoupe(null)
         setGrabbing(null)
     }
 
@@ -230,6 +264,7 @@ export default function MapCanvas({
         if (vertex >= 0) {
             drag.current = { kind: 'vertex', index: vertex, before: currentLinePoints }
             setGrabbing('vertex')
+            if (e.pointerType !== 'mouse') showLoupe(pt)
             e.currentTarget.setPointerCapture?.(e.pointerId)
             return
         }
@@ -277,6 +312,7 @@ export default function MapCanvas({
         const current = drag.current
         if (current.kind === 'vertex') {
             setCurrentLinePoints(prev => prev.map((p, i) => i === current.index ? world : p))
+            if (loupePos.current) showLoupe(localPoint(e))
         } else {
             const dx = world[0] - current.from[0], dy = world[1] - current.from[1]
             setCurrentLinePoints(current.original.map(([x, y]) => [x + dx, y + dy] as Point))
@@ -390,6 +426,15 @@ export default function MapCanvas({
                     touchAction: 'none'
                 }}
             />
+
+            {loupeAt && (
+                <canvas ref={loupeCanvas} width={LOUPE_SIZE} height={LOUPE_SIZE} className={styles.loupe} aria-hidden="true"
+                    style={{
+                        left: Math.min(Math.max(loupeAt.x - LOUPE_SIZE / 2, 8), (canvasRef.current?.width ?? 0) - LOUPE_SIZE - 8),
+                        // above the finger, or below it near the top edge
+                        top: loupeAt.y - LOUPE_GAP - LOUPE_SIZE >= 8 ? loupeAt.y - LOUPE_GAP - LOUPE_SIZE : loupeAt.y + LOUPE_GAP,
+                    }} />
+            )}
 
             {showHint && (
                 <div className={styles.drawHint} role="status">

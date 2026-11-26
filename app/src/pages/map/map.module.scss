@@ -23,6 +23,18 @@
     }
 }
 
+.loupe {
+    position: absolute;
+    z-index: 6;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    border: 3px solid #ffffff;
+    box-shadow: 0 4px 16px rgb(0 0 0 / 0.35);
+    background: $bg;
+    pointer-events: none;
+}
+
 .drawHint {
     position: absolute;
     top: calc(env(safe-area-inset-top, 0px) + 1.2rem);
