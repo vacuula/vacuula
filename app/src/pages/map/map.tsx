@@ -18,7 +18,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { useTranslation } from 'react-i18next'
 import { useGetPromotedFloorplan } from '../../utils/floormaps'
 import type { NoGoLine, Point, UseState, Zone } from '../../components/map/types'
-import { drawZones, drawZonesLabelled, drawNoGoLines, drawBase, drawCrosshair, drawInProgressPolyline, onDockImageReady, pointInZone } from '../../components/map/drawingFunctions'
+import { drawZones, drawZonesLabelled, drawNoGoLines, drawBase, drawCrosshair, drawInProgressPolyline, drawVertexHandles, onDockImageReady, pointInZone } from '../../components/map/drawingFunctions'
 import { calcRelevancy, upsertPreserveOrder } from '../../components/map/utils'
 import { normalizeHex, pickUnusedPreset } from '../../components/map/color'
 import ColorPicker from '../../components/colorPicker/ColorPicker'
@@ -133,6 +133,7 @@ export default () => {
             drawCrosshair(ctx, canvas)
             if (closedAsPolygon) {
                 drawZones(ctx, [{ vertices: currentLinePoints, name: '', color: editForm.color, type: 'polygon', id: '', enabled: true }], currentZoom, currentOffset, mapSize)
+                drawVertexHandles(ctx, currentLinePoints, currentZoom, currentOffset, mapSize)
             } else {
                 drawInProgressPolyline(ctx, currentLinePoints, currentZoom, currentOffset, mapSize)
             }

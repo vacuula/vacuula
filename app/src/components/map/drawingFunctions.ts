@@ -448,6 +448,27 @@ export function drawInProgressPolyline(
     }
 }
 
+/** Draggable points of the boundary being edited (a closed zone shows none otherwise). */
+export function drawVertexHandles(
+    ctx: CanvasRenderingContext2D,
+    pts: Point[],
+    zoom: number,
+    offset: { x: number; y: number },
+    mapSize: { height: number, width: number },
+) {
+    const sx = mapSize.width * zoom
+    const sy = mapSize.height * zoom
+    ctx.fillStyle = COLORS.IN_PROGRESS
+    ctx.strokeStyle = '#ffffff'
+    ctx.lineWidth = 2
+    for (const p of pts) {
+        ctx.beginPath()
+        ctx.arc(offset.x + p[0] * sx, offset.y + p[1] * sy, DRAWING.POINT_RADIUS * 1.5, 0, Math.PI * 2)
+        ctx.fill()
+        ctx.stroke()
+    }
+}
+
 /* ---------------- CROSSHAIR ---------------- */
 
 export function drawCrosshair(
