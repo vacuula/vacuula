@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import styles from './map.module.scss'
 import { FaUndo } from 'react-icons/fa'
 import { PiBoundingBox } from 'react-icons/pi'
+import { LuCheck } from 'react-icons/lu'
 import type { Point, UseState } from '../../components/map/types'
 import { getWorldCoords } from '../../components/map/utils'
 import { pointInZone } from '../../components/map/drawingFunctions'
@@ -34,6 +35,11 @@ interface MapCanvasProps {
     /** A tap while editing a closed zone, away from it: true if it switched to another boundary.
      *  `tolerance` is the hit distance in map units. */
     onEditTapOutside?: (point: Point, tolerance: number) => boolean
+    /** The boundary being edited is new: taps draw it. An existing one is only
+     *  reshaped (points dragged, shape moved), so a stray tap cannot add a point. */
+    isNew?: boolean
+    /** "Done" while reshaping: save the boundary and leave the editor. */
+    onDone?: () => void
 }
 
 // Editing gestures on the boundary being drawn (screen pixels / ms).
@@ -43,6 +49,7 @@ const LOUPE_GAP = 36           // between the finger and the bottom of the magni
 const GRAB_RING_MS = 450       // ring shown when the whole shape is grabbed
 const HANDLE_HIT_PX = 24       // a press this close to a point drags that point
 const OUTLINE_HIT_PX = 20      // a long press this close to the outline grabs the shape
+const PICK_LINE_PX = 12        // a tap this close to a no-go line picks it (zones win otherwise)
 const LONG_PRESS_MS = 450
 const LONG_PRESS_SLOP_PX = 10  // moving more than this first means panning
 const FIRST_POINT_HIT_PX = 28  // a tap this close to the first point closes the zone
@@ -78,10 +85,14 @@ export default function MapCanvas({
     allowPolygon = true,
     onTap,
     editKey,
-    onEditTapOutside
+    onEditTapOutside,
+    isNew = true,
+    onDone
 }: MapCanvasProps) {
     const { t } = useTranslation()
-    const drawing = mode === 'boundary-edit' && !closedAsPolygon
+    // A new line is finished with its own button; until then taps add points.
+    const [lineFinished, setLineFinished] = useState(false)
+    const drawing = mode === 'boundary-edit' && isNew && !closedAsPolygon && !lineFinished
 
     // Desktop: while drawing, a line follows the mouse from the last point.
     const [hover, setHover] = useState<Point | null>(null)
@@ -172,9 +183,19 @@ export default function MapCanvas({
     })
 
     // Undo goes back one change (point added, point or shape moved, zone closed).
+    // Only changes made in this editing session are undone: never the points
+    // the boundary had when it was opened.
     const history = useRef<Snapshot[]>([])
-    const remember = (points: Point[] = currentLinePoints, closed = closedAsPolygon) => { history.current.push({ points, closed }) }
-    useEffect(() => { history.current = [] }, [mode, editKey])
+    const [canUndo, setCanUndo] = useState(false)
+    const remember = (points: Point[] = currentLinePoints, closed = closedAsPolygon) => {
+        history.current.push({ points, closed })
+        setCanUndo(true)
+    }
+    useEffect(() => {
+        history.current = []
+        setCanUndo(false)
+        setLineFinished(false)
+    }, [mode, editKey])
 
     // "Tap the map to place the points", until the first point is placed.
     const showHint = drawing && currentLinePoints.length === 0
@@ -324,14 +345,16 @@ export default function MapCanvas({
 
     const undo = () => {
         const previous = history.current.pop()
-        if (previous) {
-            setCurrentLinePoints(previous.points)
-            setClosedAsPolygon(previous.closed)
-            return
-        }
-        // Nothing recorded (e.g. a zone opened for editing): step back the old way.
-        if (closedAsPolygon) setClosedAsPolygon(false)
-        else if (currentLinePoints.length > 0) setCurrentLinePoints(currentLinePoints.slice(0, -1))
+        setCanUndo(history.current.length > 0)
+        if (!previous) return
+        setCurrentLinePoints(previous.points)
+        setClosedAsPolygon(previous.closed)
+    }
+
+    const finishLine = () => {
+        setLineFinished(true)
+        setHover(null)
+        setDrawerOpen(true)
     }
 
     const closeAsPolygon = () => {
@@ -348,7 +371,7 @@ export default function MapCanvas({
         if (!mapSize) return
         if (!drawing) {
             // A closed zone only moves; a tap elsewhere may pick another boundary.
-            onEditTapOutside?.(toWorld({ clientX, clientY }), OUTLINE_HIT_PX / (zoom * mapSize.width))
+            onEditTapOutside?.(toWorld({ clientX, clientY }), PICK_LINE_PX / (zoom * mapSize.width))
             return
         }
         const pt = localPoint({ clientX, clientY })
@@ -372,7 +395,7 @@ export default function MapCanvas({
         if (mode === 'boundary-edit') { editTapAt(clientX, clientY); return }
         if (!onTap || !canvas || !mapSize) return
         const rect = canvas.getBoundingClientRect()
-        onTap(getWorldCoords(clientX - rect.left, clientY - rect.top, offset, zoom, mapSize), OUTLINE_HIT_PX / (zoom * mapSize.width))
+        onTap(getWorldCoords(clientX - rect.left, clientY - rect.top, offset, zoom, mapSize), PICK_LINE_PX / (zoom * mapSize.width))
     }
 
     const onTouchEnd = (e: React.TouchEvent) => {
@@ -449,12 +472,26 @@ export default function MapCanvas({
 
             {mode === 'boundary-edit' && (
                 <div className={styles.actionButtons}>
-                    <div onClick={undo} className={styles.undo}>
+                    <div onClick={undo} className={`${styles.undo} ${canUndo ? '' : styles.disabled}`}
+                        role="button" aria-label={t('ui.undoChanges')} aria-disabled={!canUndo}>
                         <FaUndo size={20} color="var(--text)" />
                     </div>
-                    {allowPolygon && (
-                        <div onClick={closeAsPolygon} className={`${styles.closePolygon} ${((currentLinePoints.length > 2) && !closedAsPolygon) ? '' : styles.disabled}`}>
+                    {drawing && allowPolygon && (
+                        <div onClick={closeAsPolygon} className={`${styles.closePolygon} ${currentLinePoints.length > 2 ? '' : styles.disabled}`}
+                            role="button" aria-label={t('map.closeZone')}>
                             <PiBoundingBox size={20} color="var(--text)" />
+                        </div>
+                    )}
+                    {drawing && !allowPolygon && (
+                        <div onClick={() => currentLinePoints.length >= 2 && finishLine()}
+                            className={`${styles.doneFab} ${currentLinePoints.length >= 2 ? '' : styles.disabled}`}
+                            role="button" aria-label={t('map.finishLine')}>
+                            <LuCheck size={22} />
+                        </div>
+                    )}
+                    {!drawing && onDone && (
+                        <div onClick={onDone} className={styles.doneFab} role="button" aria-label={t('ui.done')}>
+                            <LuCheck size={22} />
                         </div>
                     )}
                 </div>

@@ -29,16 +29,33 @@ import { LuCheck, LuEllipsis, LuPencil, LuPlay, LuRotateCcw, LuSquareCheck, LuTr
 import { Chip, ListRow, SectionLabel, ui } from '../../components/ui/ui'
 
 
-/** Is the point within `tolerance` (map units) of the polyline? */
-function nearPolyline(p: Point, vertices: Point[], tolerance: number) {
+/** Distance (map units) from the point to the polyline. */
+function polylineDistance(p: Point, vertices: Point[]) {
+    let best = Infinity
     for (let i = 0; i + 1 < vertices.length; i++) {
         const [ax, ay] = vertices[i], [bx, by] = vertices[i + 1]
         const dx = bx - ax, dy = by - ay
         const len2 = dx * dx + dy * dy
         const t = len2 ? Math.max(0, Math.min(1, ((p[0] - ax) * dx + (p[1] - ay) * dy) / len2)) : 0
-        if (Math.hypot(p[0] - (ax + t * dx), p[1] - (ay + t * dy)) <= tolerance) return true
+        best = Math.min(best, Math.hypot(p[0] - (ax + t * dx), p[1] - (ay + t * dy)))
     }
-    return false
+    return best
+}
+
+/** The zone or no-go line a tap picks. A tap inside a zone picks the zone,
+ *  unless it lands right on a line (half the tolerance): lines often cross
+ *  zones, and a near miss must not trap the user on a line. */
+function pickBoundary(boundaries: (NoGoLine | Zone)[], point: Point, tolerance: number) {
+    const all = [...boundaries].reverse() // topmost first
+    let line: NoGoLine | Zone | undefined, lineDist = Infinity
+    for (const b of all) {
+        if (b.type !== 'polyline') continue
+        const d = polylineDistance(point, b.vertices)
+        if (d <= tolerance && d < lineDist) { line = b; lineDist = d }
+    }
+    const zone = all.find(b => b.type === 'polygon' && pointInZone(point, b.vertices))
+    if (line && (!zone || lineDist <= tolerance / 2)) return line
+    return zone
 }
 
 // Delay between the end of a boundary change and its automatic send.
@@ -303,13 +320,18 @@ export default () => {
         setBoundaries(prev => upsertPreserveOrder(prev, updated));
     };
 
+    // "Done" on the map: keep the boundary if it is a real shape, then leave.
+    const finishEdit = () => {
+        const complete = closedAsPolygon ? currentLinePoints.length >= 3 : currentLinePoints.length >= 2
+        if (complete) saveEditBoundary()
+        else setMode(returnFromEditMode)
+    }
+
     // While a zone is being edited, a tap on another zone or line of the map
     // switches the editor to it (its points show up), keeping the changes made
     // so far: every boundary can be reshaped without going back to the list.
     const switchEditTo = (point: Point, tolerance: number) => {
-        const others = boundaries.filter(b => b.id !== activeBoundaryId).reverse()
-        const hit = others.find(b => b.type === 'polyline' && nearPolyline(point, b.vertices, tolerance))
-            ?? others.find(b => b.type === 'polygon' && pointInZone(point, b.vertices))
+        const hit = pickBoundary(boundaries.filter(b => b.id !== activeBoundaryId), point, tolerance)
         if (!hit) return false
         const complete = closedAsPolygon ? currentLinePoints.length >= 3 : currentLinePoints.length >= 2
         if (complete) {
@@ -432,9 +454,7 @@ export default () => {
     const onMapTap = (point: Point, tolerance: number) => {
         if (mode !== 'boundaries') return
         if (managing && editable) {
-            const all = [...boundaries].reverse()
-            const target = all.find(b => b.type === 'polyline' && nearPolyline(point, b.vertices, tolerance))
-                ?? all.find(b => b.type === 'polygon' && pointInZone(point, b.vertices))
+            const target = pickBoundary(boundaries, point, tolerance)
             if (!target) return
             openEdit(target.id, target.type === 'polyline' ? 'line' : 'zone')
             setDrawerOpen(false) // show the map and the points, not the form
@@ -560,6 +580,8 @@ export default () => {
                     onTap={onMapTap}
                     editKey={activeBoundaryId}
                     onEditTapOutside={switchEditTo}
+                    isNew={!boundaries.some(b => b.id === activeBoundaryId)}
+                    onDone={finishEdit}
                 />
             ) : (
                 <canvas className={styles.canvas} />
