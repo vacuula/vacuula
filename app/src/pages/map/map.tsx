@@ -71,6 +71,10 @@ export default () => {
         return () => clearTimeout(timer)
     }, [saveNotice])
     const dirty = JSON.stringify(boundaries) !== savedBoundaries
+    // Set when a gen3 robot did not keep a save (read back after Save).
+    const [saveWarning, setSaveWarning] = useState<string>()
+    const mounted = useRef(true)
+    useEffect(() => () => { mounted.current = false }, [])
 
     const { data: persistentMaps, refresh: updatePersistentMaps } = usePersistentMaps()
     const getPromotedFloorplan = useGetPromotedFloorplan()
@@ -160,10 +164,39 @@ export default () => {
         }
     }
 
+    // A gen3 robot answers "ok" (or nothing, while it reconnects) even when it
+    // does not keep the boundaries: read them back and compare by id.
+    const verifyGen3Save = async (mapId: string, sent: (NoGoLine | Zone)[]) => {
+        for (let attempt = 0; attempt < 12; attempt++) { // up to ~2 min
+            await new Promise(resolve => setTimeout(resolve, attempt === 0 ? 3000 : 10000))
+            if (!mounted.current) return
+            let kept: readonly (NoGoLine | Zone)[]
+            try {
+                kept = await fetchGen3MapBoundaries(robot.serial, mapId)
+            } catch {
+                continue // robot still reconnecting
+            }
+            if (!mounted.current) return
+            const keptIds = new Set(kept.map(b => b.id))
+            const missing = sent.filter(b => !keptIds.has(b.id)).length
+            if (missing === 0 && kept.length === sent.length) {
+                setSaveNotice(t('ui.mapSaveVerified'))
+                return
+            }
+            // Keep the drawing on screen but mark it unsaved, so Save is offered again.
+            setSavedBoundaries(JSON.stringify(kept))
+            setSaveNotice(undefined)
+            setSaveWarning(t('ui.mapSaveNotKept', { count: missing || Math.abs(kept.length - sent.length) }))
+            return
+        }
+        if (mounted.current) setSaveWarning(t('ui.mapSaveUnverified'))
+    }
+
     const saveBoundaries = async () => {
         if (!persistentMap || !dirty) return
         setSaving(true)
         setSaveFailed(false)
+        setSaveWarning(undefined)
         const snapshot = boundaries
         try {
             if (robot.type === RobotType.NeatoGen4) {
@@ -184,6 +217,7 @@ export default () => {
                 const result = (res.data as { result?: string } | undefined)?.result
                 if (result && result !== 'ok') throw new Error(result)
                 setSavedBoundaries(JSON.stringify(snapshot))
+                verifyGen3Save(persistentMap, snapshot)
             }
         } catch (err) {
             // A gen3 robot usually does not answer a map change: it applies it
@@ -193,6 +227,7 @@ export default () => {
             if (status === 504 || status === undefined && (err as Error)?.message?.includes('timeout')) {
                 setSavedBoundaries(JSON.stringify(snapshot))
                 setSaveNotice(t('ui.mapSentReconnect'))
+                if (robot.type === RobotType.NeatoGen3) verifyGen3Save(persistentMap, snapshot)
             } else {
                 setSaveFailed(true)
             }
@@ -616,6 +651,7 @@ export default () => {
                         )}
 
                         {saveNotice && !dirty && <div className={ui.info}>{saveNotice}</div>}
+                        {saveWarning && <div className={`${ui.info} ${styles.saveWarning}`} role="alert">{saveWarning}</div>}
 
                         {managing ? (
                             <div className={`${styles.mapActions} ${styles.mapActions2}`}>

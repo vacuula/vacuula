@@ -386,6 +386,11 @@
     color: $on-accent;
 }
 
+.saveWarning {
+    background: $warn-bg;
+    color: $warn-text;
+}
+
 .saveFailed {
     border-color: $err;
     background: $err;

@@ -2,6 +2,10 @@
     "String-version": "1",
     "ui": {
         "mapSentReconnect": "Carte envoyée. Le robot l'applique et se reconnecte (environ 1 minute).",
+        "mapSaveVerified": "Vérifié : le robot a bien gardé la carte enregistrée.",
+        "mapSaveNotKept_one": "Le robot n'a pas gardé {{count}} élément enregistré. Ton dessin est toujours là : enregistre à nouveau.",
+        "mapSaveNotKept_other": "Le robot n'a pas gardé {{count}} éléments enregistrés. Ton dessin est toujours là : enregistre à nouveau.",
+        "mapSaveUnverified": "Impossible de vérifier l'enregistrement : le robot ne répond pas. Rouvre la carte plus tard pour contrôler.",
         "saveBeforeClean": "Enregistre la carte avant de nettoyer : le robot ne connaît pas encore tes modifications.",
         "saved": "Enregistré",
         "saving": "Envoi…",

@@ -2,6 +2,10 @@
     "String-version": "0",
     "ui": {
         "mapSentReconnect": "Mapa enviado. O robô aplica-o e volta a ligar-se (cerca de 1 minuto).",
+        "mapSaveVerified": "Verificado: o robô guardou o mapa salvo.",
+        "mapSaveNotKept_one": "O robô não guardou {{count}} item salvo. O seu desenho ainda está aqui: salve de novo.",
+        "mapSaveNotKept_other": "O robô não guardou {{count}} itens salvos. O seu desenho ainda está aqui: salve de novo.",
+        "mapSaveUnverified": "Não foi possível verificar: o robô não responde. Abra o mapa mais tarde para conferir.",
         "saveBeforeClean": "Guarde o mapa antes de limpar: o robô ainda não conhece as alterações.",
         "saved": "Guardado",
         "saving": "A enviar…",

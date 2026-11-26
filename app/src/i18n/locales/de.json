@@ -2,6 +2,10 @@
     "String-version": "3",
     "ui": {
         "mapSentReconnect": "Karte gesendet. Der Roboter übernimmt sie und verbindet sich neu (etwa 1 Minute).",
+        "mapSaveVerified": "Geprüft: Der Roboter hat die gespeicherte Karte behalten.",
+        "mapSaveNotKept_one": "Der Roboter hat {{count}} gespeichertes Element nicht behalten. Deine Zeichnung ist noch da: erneut speichern.",
+        "mapSaveNotKept_other": "Der Roboter hat {{count}} gespeicherte Elemente nicht behalten. Deine Zeichnung ist noch da: erneut speichern.",
+        "mapSaveUnverified": "Speichern konnte nicht geprüft werden: Der Roboter antwortet nicht. Öffne die Karte später erneut.",
         "saveBeforeClean": "Speichere die Karte vor dem Reinigen: der Roboter kennt deine Änderungen noch nicht.",
         "saved": "Gespeichert",
         "saving": "Senden…",

@@ -2,6 +2,10 @@
     "String-version": "4",
     "ui": {
         "mapSentReconnect": "Map sent. The robot applies it and reconnects (about 1 minute).",
+        "mapSaveVerified": "Checked: the robot kept the saved map.",
+        "mapSaveNotKept_one": "The robot did not keep {{count}} saved item. Your drawing is still here: save again.",
+        "mapSaveNotKept_other": "The robot did not keep {{count}} saved items. Your drawing is still here: save again.",
+        "mapSaveUnverified": "Could not check the save: the robot does not answer. Reopen the map later to check.",
         "saveBeforeClean": "Save the map before cleaning: the robot does not know your changes yet.",
         "saved": "Saved",
         "saving": "Sending…",
