@@ -450,9 +450,14 @@
     white-space: nowrap;
 }
 
+// While renaming, the back arrow is hidden and the header's Save / Cancel
+// buttons sit on the right (absolute, 2 x 4.4rem + gap, 1.6rem from the edge):
+// the field takes the room left of them instead of being centred under them.
 .renameInput {
-    width: 55vw;
-    max-width: 26rem;
+    position: absolute;
+    left: 1.6rem;
+    right: calc(1.6rem + 2 * 4.4rem + 0.6rem + 1rem);
+    width: auto;
     height: 4rem;
     box-sizing: border-box;
     padding: 0 1rem;
