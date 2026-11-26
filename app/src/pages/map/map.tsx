@@ -29,6 +29,9 @@ import { LuCheck, LuEllipsis, LuPencil, LuPlay, LuRotateCcw, LuSquareCheck, LuTr
 import { Chip, ListRow, SectionLabel, ui } from '../../components/ui/ui'
 
 
+// Delay between the end of a boundary change and its automatic send.
+const AUTO_SAVE_DELAY_MS = 1000
+
 export default () => {
     const { t } = useTranslation()
     const [boundaries, setBoundaries] = useState<(NoGoLine | Zone)[]>([])
@@ -59,8 +62,9 @@ export default () => {
     const [activeBoundaryId, setActiveBoundaryId] = useState<string | undefined>(undefined);
 
     const { robot } = useRobot()
-    // Boundary changes stay local until Save: every save makes a gen3 robot
-    // drop its connection for about a minute, so they are sent all at once.
+    // Each boundary change is sent on its own shortly after it is made (create,
+    // edit, delete, switch): nothing waits for a Save that is easy to forget.
+    // The header button only shows progress, or Retry when a send failed.
     const [savedBoundaries, setSavedBoundaries] = useState('[]')
     const [saving, setSaving] = useState(false)
     const [saveFailed, setSaveFailed] = useState(false)
@@ -235,6 +239,14 @@ export default () => {
             setSaving(false)
         }
     }
+
+    // Auto-save: once a change is done (not while a boundary is being drawn),
+    // send it. A failed send stops here until Retry, so it cannot loop.
+    useEffect(() => {
+        if (!dirty || saving || saveFailed || !persistentMap || mode === 'boundary-edit') return
+        const timer = setTimeout(saveBoundaries, AUTO_SAVE_DELAY_MS)
+        return () => clearTimeout(timer)
+    }, [boundaries, savedBoundaries, saving, saveFailed, persistentMap, mode])
 
     // Leaving a map with unsaved changes asks first.
     const confirmDiscard = () => !dirty || window.confirm(t('ui.unsavedLeave'))
@@ -440,10 +452,10 @@ export default () => {
         </div>
     ) : (
         <div className={styles.headerButtons}>
-            {(dirty || saving || saveFailed) && (
+            {(saving || saveFailed) && (
                 <button type="button" className={`${styles.saveButton} ${styles.saveDirty} ${saveFailed ? styles.saveFailed : ''}`}
-                    disabled={!dirty || saving} onClick={saveBoundaries}>
-                    {saving ? t('ui.saving') : saveFailed ? t('ui.saveRetry') : t('common.save')}
+                    disabled={saving} onClick={saveBoundaries}>
+                    {saving ? t('ui.saving') : t('ui.saveRetry')}
                 </button>
             )}
             <div className={styles.menuAnchor} ref={menuRef}>
@@ -591,7 +603,7 @@ export default () => {
                                 )}
                         </div>
 
-                        {dirty && (
+                        {dirty && saveFailed && (
                             <div className={styles.draftBanner} role="status">
                                 <span>{t('ui.unsavedChanges')}</span>
                                 <button type="button" onClick={undoChanges}><LuRotateCcw size={14} aria-hidden="true" />{t('ui.undoChanges')}</button>
