@@ -435,17 +435,23 @@ export function drawInProgressPolyline(
 
     ctx.fillStyle = COLORS.IN_PROGRESS
 
-    for (const p of pts) {
+    pts.forEach((p, i) => {
         ctx.beginPath()
         ctx.arc(
             offset.x + p[0] * sx,
             offset.y + p[1] * sy,
-            DRAWING.POINT_RADIUS,
+            // The first point is bigger: tapping it again closes the zone.
+            i === 0 ? DRAWING.POINT_RADIUS * 2.6 : DRAWING.POINT_RADIUS,
             0,
             Math.PI * 2
         )
         ctx.fill()
-    }
+        if (i === 0) {
+            ctx.strokeStyle = '#ffffff'
+            ctx.lineWidth = 2
+            ctx.stroke()
+        }
+    })
 }
 
 /** Draggable points of the boundary being edited (a closed zone shows none otherwise). */

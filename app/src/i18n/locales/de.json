@@ -258,6 +258,8 @@
         "maps": "Karten",
         "mapTitle": "Karte: {{name}}",
         "dragUpToFinish": "Zum beenden nach oben ziehen",
+        "tapToPlaceZone": "Tippe auf die Karte, um die Punkte der Zone zu setzen. Tippe auf den großen ersten Punkt, um sie zu schließen.",
+        "tapToPlaceLine": "Tippe auf die Karte, um die Punkte der Linie zu setzen, und ziehe dann das Feld nach oben, um abzuschließen.",
         "editBoundary": "Grenze bearbeiten",
         "selectMap": "Wähle eine Karte",
         "noMaps": "Du hast bisher keine Karten erkundet. Starte eine Erkundung um Grenzen einzuzeichnen!",

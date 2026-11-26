@@ -23,6 +23,24 @@
     }
 }
 
+.drawHint {
+    position: absolute;
+    top: calc(env(safe-area-inset-top, 0px) + 1.2rem);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+    max-width: calc(100% - 3.2rem);
+    padding: 0.9rem 1.4rem;
+    border-radius: var(--radius-control);
+    background: $surface-neutral-2;
+    color: $text-primary;
+    font-size: 1.3rem;
+    line-height: 1.4;
+    text-align: center;
+    box-shadow: 0 2px 12px rgb(0 0 0 / 0.25);
+    pointer-events: none;
+}
+
 .actionButtons {
     display: flex;
     position: absolute;

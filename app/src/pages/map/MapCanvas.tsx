@@ -1,10 +1,12 @@
-import { useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import styles from './map.module.scss'
 import { FaPlus, FaUndo } from 'react-icons/fa'
 import { PiBoundingBox } from 'react-icons/pi'
 import type { Point, UseState } from '../../components/map/types'
-import { getCrosshairWorldCoords, getWorldCoords } from '../../components/map/utils'
+import { getWorldCoords } from '../../components/map/utils'
 import { pointInZone } from '../../components/map/drawingFunctions'
+import { COLORS } from '../../components/map/constants'
 import { useMap, type ExtraDrawFn } from '../../components/map/useMap'
 
 // Single source of truth for the page's mode union — map.tsx imports this rather
@@ -33,6 +35,8 @@ const HANDLE_HIT_PX = 24       // a press this close to a point drags that point
 const OUTLINE_HIT_PX = 20      // a long press this close to the outline grabs the shape
 const LONG_PRESS_MS = 450
 const LONG_PRESS_SLOP_PX = 10  // moving more than this first means panning
+const FIRST_POINT_HIT_PX = 28  // a tap this close to the first point closes the zone
+const HINT_MS = 4000
 
 function distToSegment(p: { x: number, y: number }, a: { x: number, y: number }, b: { x: number, y: number }) {
     const dx = b.x - a.x, dy = b.y - a.y
@@ -42,8 +46,11 @@ function distToSegment(p: { x: number, y: number }, a: { x: number, y: number },
 }
 
 type EditDrag =
-    | { kind: 'vertex', index: number }
+    | { kind: 'vertex', index: number, before: Point[] }
     | { kind: 'shape', from: Point, original: Point[] }
+
+/** What Undo goes back to: the drawing before the last change. */
+type Snapshot = { points: Point[], closed: boolean }
 
 // Owns everything that genuinely can't exist without a selected map: the hook, the
 // canvas element + its pan/zoom handlers, and the boundary-drawing action buttons
@@ -62,13 +69,50 @@ export default function MapCanvas({
     allowPolygon = true,
     onTap
 }: MapCanvasProps) {
-    const { canvasRef, mapSize, zoom, offset, isDragging, hasMoved, canvasHandlers } = useMap({
+    const { t } = useTranslation()
+    const drawing = mode === 'boundary-edit' && !closedAsPolygon
+
+    // Desktop: while drawing, a line follows the mouse from the last point.
+    const [hover, setHover] = useState<Point | null>(null)
+    const drawWithRubberBand = useCallback<ExtraDrawFn>((ctx, canvas, currentZoom, currentOffset, size) => {
+        void redrawKey // redraw when the caller asks for it
+        extraDraw?.(ctx, canvas, currentZoom, currentOffset, size)
+        const last = currentLinePoints[currentLinePoints.length - 1]
+        if (!drawing || !hover || !last) return
+        const at = (p: Point) => [currentOffset.x + p[0] * size.width * currentZoom, currentOffset.y + p[1] * size.height * currentZoom] as const
+        ctx.save()
+        ctx.setLineDash([6, 6])
+        ctx.lineWidth = 2
+        ctx.strokeStyle = COLORS.IN_PROGRESS
+        ctx.beginPath()
+        ctx.moveTo(...at(last))
+        ctx.lineTo(...at(hover))
+        ctx.stroke()
+        ctx.restore()
+    }, [extraDraw, redrawKey, drawing, hover, currentLinePoints])
+
+    const { canvasRef, mapSize, zoom, offset, isDragging, canvasHandlers } = useMap({
         mapId,
         runId,
-        extraDraw,
-        redrawKey,
+        extraDraw: drawWithRubberBand,
+        // Changes whenever the caller's overlay (or the rubber band) does.
+        redrawKey: drawWithRubberBand,
         backgroundToken: '--map-editor-bg'
     })
+
+    // Undo goes back one change (point added, point or shape moved, zone closed).
+    const history = useRef<Snapshot[]>([])
+    const remember = (points: Point[] = currentLinePoints, closed = closedAsPolygon) => { history.current.push({ points, closed }) }
+    useEffect(() => { history.current = [] }, [mode])
+
+    // "Tap the map to place the points": shown when drawing starts, and on +.
+    const [hintUntil, setHintUntil] = useState(0)
+    useEffect(() => {
+        if (!hintUntil) return
+        const timer = setTimeout(() => setHintUntil(0), Math.max(0, hintUntil - Date.now()))
+        return () => clearTimeout(timer)
+    }, [hintUntil])
+    const showHint = drawing && (currentLinePoints.length === 0 || hintUntil > 0)
 
     // ── Moving points and shapes while editing ──
     // A press on a point drags that point; a long press on the shape (inside a
@@ -112,6 +156,8 @@ export default function MapCanvas({
     const cancelLongPress = () => clearTimeout(longPressTimer.current)
     const endEditDrag = () => {
         cancelLongPress()
+        const done = drag.current
+        if (done && draggedSincePress.current) remember(done.kind === 'vertex' ? done.before : done.original)
         drag.current = null
         setGrabbing(null)
     }
@@ -126,7 +172,7 @@ export default function MapCanvas({
         const pt = localPoint(e)
         const vertex = nearestVertex(pt)
         if (vertex >= 0) {
-            drag.current = { kind: 'vertex', index: vertex }
+            drag.current = { kind: 'vertex', index: vertex, before: currentLinePoints }
             setGrabbing('vertex')
             e.currentTarget.setPointerCapture?.(e.pointerId)
             return
@@ -148,6 +194,7 @@ export default function MapCanvas({
 
     const editPointerMove = (e: React.PointerEvent) => {
         const start = tapStart.current
+        if (e.pointerType === 'mouse' && drawing && mapSize && !drag.current) setHover(toWorld(e))
         if (!drag.current) {
             if (start && Math.hypot(e.clientX - start.x, e.clientY - start.y) > LONG_PRESS_SLOP_PX) cancelLongPress()
             return
@@ -167,25 +214,40 @@ export default function MapCanvas({
     // While a point or the shape moves, the map must not pan underneath.
     const unlessEditing = <E,>(handler: (e: E) => void) => (e: E) => { if (!drag.current) handler(e) }
 
-    const addPointAtCrosshair = () => {
-        if (!mapSize) return // map not loaded yet
-        const coords = getCrosshairWorldCoords(canvasRef, offset, zoom, mapSize)
-        setCurrentLinePoints(prev => [...prev, coords])
-    }
-
     const undo = () => {
-        if (closedAsPolygon) {
-            setClosedAsPolygon(false)
+        const previous = history.current.pop()
+        if (previous) {
+            setCurrentLinePoints(previous.points)
+            setClosedAsPolygon(previous.closed)
             return
         }
-        if (currentLinePoints.length > 0) {
-            setCurrentLinePoints(currentLinePoints.slice(0, -1))
-        }
+        // Nothing recorded (e.g. a zone opened for editing): step back the old way.
+        if (closedAsPolygon) setClosedAsPolygon(false)
+        else if (currentLinePoints.length > 0) setCurrentLinePoints(currentLinePoints.slice(0, -1))
     }
 
     const closeAsPolygon = () => {
+        remember()
         setClosedAsPolygon(true)
+        setHover(null)
         setDrawerOpen(true)
+    }
+
+    // A tap while drawing places a point where it lands; a tap on the first
+    // point (from 3 points on) closes the zone. Taps on other points do nothing
+    // (they are grabbed to be moved), and a closed zone only moves.
+    const editTapAt = (clientX: number, clientY: number) => {
+        if (!drawing || !mapSize) return
+        const pt = localPoint({ clientX, clientY })
+        const first = currentLinePoints[0]
+        if (allowPolygon && first && currentLinePoints.length >= 3
+            && Math.hypot(toScreen(first).x - pt.x, toScreen(first).y - pt.y) <= FIRST_POINT_HIT_PX) {
+            closeAsPolygon()
+            return
+        }
+        if (nearestVertex(pt) >= 0) return
+        remember()
+        setCurrentLinePoints([...currentLinePoints, toWorld({ clientX, clientY })])
     }
 
     const onTouchMove = (e: React.TouchEvent) => {
@@ -194,15 +256,14 @@ export default function MapCanvas({
 
     const tapAt = (clientX: number, clientY: number) => {
         const canvas = canvasRef.current
-        if (!onTap || !canvas || !mapSize || mode === 'boundary-edit') return
+        if (mode === 'boundary-edit') { editTapAt(clientX, clientY); return }
+        if (!onTap || !canvas || !mapSize) return
         const rect = canvas.getBoundingClientRect()
         onTap(getWorldCoords(clientX - rect.left, clientY - rect.top, offset, zoom, mapSize))
     }
 
     const onTouchEnd = (e: React.TouchEvent) => {
         canvasHandlers.onTouchEnd(e)
-        // A press that moved a point or the shape is not a tap that adds a point.
-        if (mode === 'boundary-edit' && !hasMoved && !drag.current && !draggedSincePress.current) addPointAtCrosshair()
         draggedSincePress.current = false
     }
 
@@ -242,7 +303,7 @@ export default function MapCanvas({
                 onPointerMove={editPointerMove}
                 onPointerUp={onPointerUp}
                 onPointerCancel={onPointerCancel}
-                onMouseLeave={canvasHandlers.onMouseLeave}
+                onMouseLeave={() => { setHover(null); canvasHandlers.onMouseLeave() }}
                 onWheel={canvasHandlers.onWheel}
                 onTouchStart={unlessEditing(canvasHandlers.onTouchStart)}
                 onTouchMove={onTouchMove}
@@ -253,12 +314,18 @@ export default function MapCanvas({
                 }}
             />
 
+            {showHint && (
+                <div className={styles.drawHint} role="status">
+                    {allowPolygon ? t('map.tapToPlaceZone') : t('map.tapToPlaceLine')}
+                </div>
+            )}
+
             {mode === 'boundary-edit' && (
                 <div className={styles.actionButtons}>
                     <div onClick={undo} className={styles.undo}>
                         <FaUndo size={20} color="var(--text)" />
                     </div>
-                    <div onClick={addPointAtCrosshair} className={`${styles.add} ${closedAsPolygon ? styles.disabled : ''}`}>
+                    <div onClick={() => setHintUntil(Date.now() + HINT_MS)} className={`${styles.add} ${closedAsPolygon ? styles.disabled : ''}`}>
                         <FaPlus size={40} color="var(--text)" />
                     </div>
                     {allowPolygon && (
