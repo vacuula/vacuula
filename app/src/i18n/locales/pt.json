@@ -254,6 +254,8 @@
         "dragUpToFinish": "Arraste para cima para terminar",
         "tapToPlaceZone": "Toque no mapa para colocar os pontos da zona. Toque no primeiro ponto, maior, para fechá-la.",
         "tapToPlaceLine": "Toque no mapa para colocar os pontos da linha e depois arraste o painel para cima para terminar.",
+        "movingZone": "Movendo a zona",
+        "movingLine": "Movendo a linha",
         "editBoundary": "Editar limite",
         "selectMap": "Selecione um mapa",
         "noMaps": "Ainda não tem mapas explorados, inicie uma exploração para criar um mapa!",

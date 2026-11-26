@@ -41,6 +41,18 @@
     pointer-events: none;
 }
 
+.drawHintMoving {
+    background: $accent;
+    color: $on-accent;
+    font-weight: 600;
+    animation: drawHintPop 0.25s ease-out;
+}
+
+@keyframes drawHintPop {
+    from { transform: translateX(-50%) scale(0.85); opacity: 0; }
+    to { transform: translateX(-50%) scale(1); opacity: 1; }
+}
+
 .actionButtons {
     display: flex;
     position: absolute;
