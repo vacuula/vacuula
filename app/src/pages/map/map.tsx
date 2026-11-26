@@ -426,13 +426,23 @@ export default () => {
         setChecked([])
     }
 
-    // A tap on a zone of the map does what a tap on its button does.
-    const onMapTap = (point: Point) => {
+    // A tap on a zone of the map does what a tap on its button does. While
+    // managing zones, it opens the editor on the zone (or no-go line) tapped,
+    // with its points on the map, without picking it in the list first.
+    const onMapTap = (point: Point, tolerance: number) => {
         if (mode !== 'boundaries') return
+        if (managing && editable) {
+            const all = [...boundaries].reverse()
+            const target = all.find(b => b.type === 'polyline' && nearPolyline(point, b.vertices, tolerance))
+                ?? all.find(b => b.type === 'polygon' && pointInZone(point, b.vertices))
+            if (!target) return
+            openEdit(target.id, target.type === 'polyline' ? 'line' : 'zone')
+            setDrawerOpen(false) // show the map and the points, not the form
+            return
+        }
         const hit = [...cleaningZones].reverse().find(z => pointInZone(point, z.vertices))
         if (!hit) return
-        if (managing) toggleChecked(hit.id)
-        else toggleZone(hit.id)
+        toggleZone(hit.id)
     }
 
     const startRename = () => {

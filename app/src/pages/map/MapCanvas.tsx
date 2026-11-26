@@ -26,8 +26,9 @@ interface MapCanvasProps {
     setDrawerOpen: (open: boolean) => void
     /** false while drawing a no-go line: the "close as polygon" button is hidden */
     allowPolygon?: boolean
-    /** A tap (no drag) on the map outside drawing mode, in map coordinates (0..1). */
-    onTap?: (point: Point) => void
+    /** A tap (no drag) on the map outside drawing mode, in map coordinates (0..1),
+     *  with the hit distance for lines in map units. */
+    onTap?: (point: Point, tolerance: number) => void
     /** Identifies the boundary being edited: the undo history restarts when it changes. */
     editKey?: string
     /** A tap while editing a closed zone, away from it: true if it switched to another boundary.
@@ -162,13 +163,18 @@ export default function MapCanvas({
     const longPressTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
     const [grabbing, setGrabbing] = useState<EditDrag['kind'] | null>(null)
     // Keep redrawing while the shape is held, so its outline keeps moving.
+    // draw() must get the current zoom and offset: its defaults are the ones of
+    // the first render, which drew the map off-screen (a black canvas).
+    const view = useRef({ zoom, offset })
+    view.current = { zoom, offset }
     useEffect(() => {
         if (grabbing !== 'shape') return
+        const redraw = () => draw(view.current.zoom, view.current.offset)
         let frame = requestAnimationFrame(function tick() {
-            draw()
+            redraw()
             frame = requestAnimationFrame(tick)
         })
-        return () => { cancelAnimationFrame(frame); draw() }
+        return () => { cancelAnimationFrame(frame); redraw() }
     }, [grabbing, draw])
     // Mouse over something that can be grabbed: a point, or the shape.
     const [overGrabbable, setOverGrabbable] = useState(false)
@@ -330,7 +336,7 @@ export default function MapCanvas({
         if (mode === 'boundary-edit') { editTapAt(clientX, clientY); return }
         if (!onTap || !canvas || !mapSize) return
         const rect = canvas.getBoundingClientRect()
-        onTap(getWorldCoords(clientX - rect.left, clientY - rect.top, offset, zoom, mapSize))
+        onTap(getWorldCoords(clientX - rect.left, clientY - rect.top, offset, zoom, mapSize), OUTLINE_HIT_PX / (zoom * mapSize.width))
     }
 
     const onTouchEnd = (e: React.TouchEvent) => {
