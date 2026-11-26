@@ -108,14 +108,17 @@ export default function MapCanvas({
     const showHint = drawing && currentLinePoints.length === 0
 
     // ── Moving points and shapes while editing ──
-    // A press on a point drags that point; a long press on the shape (inside a
-    // zone, or on the outline) then a drag moves the whole shape. Otherwise the
+    // A press on a point drags that point; a press with the mouse, or a long
+    // press with a finger, on the shape (inside a zone, or on the outline) then
+    // a drag moves the whole shape. Otherwise the
     // map pans as before. Pointer events come first, so the pan handlers below
     // are skipped while a point or the shape is being moved.
     const drag = useRef<EditDrag | null>(null)
     const draggedSincePress = useRef(false)
     const longPressTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
     const [grabbing, setGrabbing] = useState<EditDrag['kind'] | null>(null)
+    // Mouse over something that can be grabbed: a point, or the shape.
+    const [overGrabbable, setOverGrabbable] = useState(false)
 
     const localPoint = (e: { clientX: number, clientY: number }) => {
         const rect = canvasRef.current!.getBoundingClientRect()
@@ -173,6 +176,15 @@ export default function MapCanvas({
         const world = toWorld(e)
         if (!onShape(pt, world)) return
         const original = currentLinePoints
+        // With a mouse, pressing the shape grabs it right away: dragging it moves
+        // the shape, not the map. On a touch screen a long press is needed, so a
+        // finger can still pan the map across a zone.
+        if (e.pointerType === 'mouse') {
+            drag.current = { kind: 'shape', from: world, original }
+            setGrabbing('shape')
+            e.currentTarget.setPointerCapture?.(e.pointerId)
+            return
+        }
         const pointerId = e.pointerId
         const target = e.currentTarget
         cancelLongPress()
@@ -188,6 +200,11 @@ export default function MapCanvas({
     const editPointerMove = (e: React.PointerEvent) => {
         const start = tapStart.current
         if (e.pointerType === 'mouse' && drawing && mapSize && !drag.current) setHover(toWorld(e))
+        if (e.pointerType === 'mouse' && mode === 'boundary-edit' && mapSize && !drag.current) {
+            const pt = localPoint(e)
+            const over = nearestVertex(pt) >= 0 || onShape(pt, toWorld(e))
+            if (over !== overGrabbable) setOverGrabbable(over)
+        }
         if (!drag.current) {
             if (start && Math.hypot(e.clientX - start.x, e.clientY - start.y) > LONG_PRESS_SLOP_PX) cancelLongPress()
             return
@@ -302,7 +319,7 @@ export default function MapCanvas({
                 onTouchMove={onTouchMove}
                 onTouchEnd={onTouchEnd}
                 style={{
-                    cursor: grabbing ? 'grabbing' : mode === 'boundary-edit' ? 'crosshair' : isDragging ? 'grabbing' : 'grab',
+                    cursor: grabbing ? 'grabbing' : mode === 'boundary-edit' ? (overGrabbable ? 'move' : 'crosshair') : isDragging ? 'grabbing' : 'grab',
                     touchAction: 'none'
                 }}
             />
