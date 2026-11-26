@@ -309,6 +309,24 @@ export default function Home() {
         }
     }
 
+    // Map (and zones) the next run will use, shown above the controls.
+    const mapTarget: string | undefined = (() => {
+        if (gen3__cleaningCategory !== CleaningCategory.MAP) return undefined
+        if (robot.type === RobotType.NeatoGen3) {
+            if (!isDocked(robot) || enabledMaps.length === 0) return undefined
+            if (selectedZones.length > 0) {
+                const [mapId, zoneId] = selectedZones[0].split(ZONE_SEP)
+                const map = enabledMaps.find(m => m.id === mapId)
+                const zone = getCachedZones(robot.serial, mapId).find(z => z.id === zoneId)
+                return [map?.name, zone?.name].filter(Boolean).join(' · ')
+            }
+            return enabledMaps.map(m => m.name).join(', ')
+        }
+        if (!promotedFloorplan) return undefined
+        const zones = selectedZones.map(id => gen4Zones.find(z => z.id === id)?.name).filter(Boolean)
+        return [promotedFloorplan.name, zones.join(' → ')].filter(Boolean).join(' · ')
+    })()
+
     const zoneCount = gen3__cleaningCategory === CleaningCategory.MAP ? selectedZones.length : 0
     const charge = robot.details?.charge ?? 0
 
@@ -401,6 +419,13 @@ export default function Home() {
                 <Chip icon={nav.icon} label={nav.label} ariaLabel={t('home.btnExplain.navigation')} onClick={() => setNav(cycle(navOptions, navValue))} />
                 <Chip icon={power.icon} label={power.label} ariaLabel={t('home.btnExplain.cleaning')} onClick={() => setPower(cycle(powerOptions, powerValue))} />
             </div>
+
+            {mapTarget && (
+                <div className={styles.mapTarget}>
+                    <LuMap size={16} aria-hidden="true" />
+                    <span>{t('ui.mapTarget', { name: mapTarget })}</span>
+                </div>
+            )}
 
             {/* ── Stop / start / base ── */}
             <div className={styles.controls}>

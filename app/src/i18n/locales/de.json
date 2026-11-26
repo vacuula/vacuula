@@ -31,6 +31,7 @@
         "new": "Neu",
         "zones_one": "{{count}} Zone",
         "zones_other": "{{count}} Zonen",
+        "mapTarget": "Karte: {{name}}",
         "onBase": "auf der Basis",
         "offBase": "nicht auf der Basis",
         "battery": "Akku",

@@ -323,6 +323,16 @@
 }
 
 // Feedback of the Base button (going home, or why the robot refused).
+.mapTarget {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    color: $text-muted;
+    font-size: 1.3rem;
+    text-align: center;
+}
+
 .notice {
     padding: 1rem 1.4rem;
     border-radius: var(--radius-control);

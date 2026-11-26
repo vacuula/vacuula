@@ -31,6 +31,7 @@
         "new": "Novo",
         "zones_one": "{{count}} zona",
         "zones_other": "{{count}} zonas",
+        "mapTarget": "Mapa: {{name}}",
         "onBase": "na base",
         "offBase": "fora da base",
         "battery": "Bateria",
