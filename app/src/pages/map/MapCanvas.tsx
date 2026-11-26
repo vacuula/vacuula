@@ -28,9 +28,15 @@ interface MapCanvasProps {
     allowPolygon?: boolean
     /** A tap (no drag) on the map outside drawing mode, in map coordinates (0..1). */
     onTap?: (point: Point) => void
+    /** Identifies the boundary being edited: the undo history restarts when it changes. */
+    editKey?: string
+    /** A tap while editing a closed zone, away from it: true if it switched to another boundary.
+     *  `tolerance` is the hit distance in map units. */
+    onEditTapOutside?: (point: Point, tolerance: number) => boolean
 }
 
 // Editing gestures on the boundary being drawn (screen pixels / ms).
+const GRAB_RING_MS = 450       // ring shown when the whole shape is grabbed
 const HANDLE_HIT_PX = 24       // a press this close to a point drags that point
 const OUTLINE_HIT_PX = 20      // a long press this close to the outline grabs the shape
 const LONG_PRESS_MS = 450
@@ -66,19 +72,57 @@ export default function MapCanvas({
     setClosedAsPolygon,
     setDrawerOpen,
     allowPolygon = true,
-    onTap
+    onTap,
+    editKey,
+    onEditTapOutside
 }: MapCanvasProps) {
     const { t } = useTranslation()
     const drawing = mode === 'boundary-edit' && !closedAsPolygon
 
     // Desktop: while drawing, a line follows the mouse from the last point.
     const [hover, setHover] = useState<Point | null>(null)
+    // Set while the whole shape is held: where and when it was grabbed (for the
+    // grab ring), and drives the "moving" animation drawn below.
+    const shapeGrab = useRef<{ at: number, x: number, y: number } | null>(null)
     const drawWithRubberBand = useCallback<ExtraDrawFn>((ctx, canvas, currentZoom, currentOffset, size) => {
         void redrawKey // redraw when the caller asks for it
         extraDraw?.(ctx, canvas, currentZoom, currentOffset, size)
+        const at = (p: Point) => [currentOffset.x + p[0] * size.width * currentZoom, currentOffset.y + p[1] * size.height * currentZoom] as const
+
+        // Held shape: marching-ants outline with a glow, and a ring that
+        // spreads from the finger right after the grab.
+        const grab = shapeGrab.current
+        if (grab && currentLinePoints.length >= 2) {
+            const now = performance.now()
+            ctx.save()
+            ctx.beginPath()
+            ctx.moveTo(...at(currentLinePoints[0]))
+            for (const p of currentLinePoints.slice(1)) ctx.lineTo(...at(p))
+            if (closedAsPolygon) ctx.closePath()
+            ctx.lineWidth = 3
+            ctx.strokeStyle = '#ffffff'
+            ctx.shadowColor = COLORS.IN_PROGRESS
+            ctx.shadowBlur = 10 + 6 * Math.sin(now / 160)
+            ctx.setLineDash([10, 8])
+            ctx.lineDashOffset = -(now / 25) % 18
+            ctx.stroke()
+            const elapsed = now - grab.at
+            if (elapsed < GRAB_RING_MS) {
+                const k = elapsed / GRAB_RING_MS
+                ctx.setLineDash([])
+                ctx.shadowBlur = 0
+                ctx.globalAlpha = 1 - k
+                ctx.lineWidth = 3
+                ctx.strokeStyle = COLORS.IN_PROGRESS
+                ctx.beginPath()
+                ctx.arc(grab.x, grab.y, 12 + 40 * k, 0, Math.PI * 2)
+                ctx.stroke()
+            }
+            ctx.restore()
+        }
+
         const last = currentLinePoints[currentLinePoints.length - 1]
         if (!drawing || !hover || !last) return
-        const at = (p: Point) => [currentOffset.x + p[0] * size.width * currentZoom, currentOffset.y + p[1] * size.height * currentZoom] as const
         ctx.save()
         ctx.setLineDash([6, 6])
         ctx.lineWidth = 2
@@ -88,9 +132,9 @@ export default function MapCanvas({
         ctx.lineTo(...at(hover))
         ctx.stroke()
         ctx.restore()
-    }, [extraDraw, redrawKey, drawing, hover, currentLinePoints])
+    }, [extraDraw, redrawKey, drawing, hover, currentLinePoints, closedAsPolygon])
 
-    const { canvasRef, mapSize, zoom, offset, isDragging, canvasHandlers } = useMap({
+    const { canvasRef, mapSize, zoom, offset, isDragging, canvasHandlers, draw } = useMap({
         mapId,
         runId,
         extraDraw: drawWithRubberBand,
@@ -102,7 +146,7 @@ export default function MapCanvas({
     // Undo goes back one change (point added, point or shape moved, zone closed).
     const history = useRef<Snapshot[]>([])
     const remember = (points: Point[] = currentLinePoints, closed = closedAsPolygon) => { history.current.push({ points, closed }) }
-    useEffect(() => { history.current = [] }, [mode])
+    useEffect(() => { history.current = [] }, [mode, editKey])
 
     // "Tap the map to place the points", until the first point is placed.
     const showHint = drawing && currentLinePoints.length === 0
@@ -117,6 +161,15 @@ export default function MapCanvas({
     const draggedSincePress = useRef(false)
     const longPressTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
     const [grabbing, setGrabbing] = useState<EditDrag['kind'] | null>(null)
+    // Keep redrawing while the shape is held, so its outline keeps moving.
+    useEffect(() => {
+        if (grabbing !== 'shape') return
+        let frame = requestAnimationFrame(function tick() {
+            draw()
+            frame = requestAnimationFrame(tick)
+        })
+        return () => { cancelAnimationFrame(frame); draw() }
+    }, [grabbing, draw])
     // Mouse over something that can be grabbed: a point, or the shape.
     const [overGrabbable, setOverGrabbable] = useState(false)
 
@@ -155,6 +208,7 @@ export default function MapCanvas({
         const done = drag.current
         if (done && draggedSincePress.current) remember(done.kind === 'vertex' ? done.before : done.original)
         drag.current = null
+        shapeGrab.current = null
         setGrabbing(null)
     }
 
@@ -181,6 +235,7 @@ export default function MapCanvas({
         // finger can still pan the map across a zone.
         if (e.pointerType === 'mouse') {
             drag.current = { kind: 'shape', from: world, original }
+            shapeGrab.current = { at: performance.now(), ...pt }
             setGrabbing('shape')
             e.currentTarget.setPointerCapture?.(e.pointerId)
             return
@@ -191,6 +246,7 @@ export default function MapCanvas({
         longPressTimer.current = setTimeout(() => {
             drag.current = { kind: 'shape', from: world, original }
             draggedSincePress.current = true // a grabbed shape is not a tap
+            shapeGrab.current = { at: performance.now(), ...pt }
             setGrabbing('shape')
             target.setPointerCapture?.(pointerId)
             navigator.vibrate?.(30)
@@ -247,7 +303,12 @@ export default function MapCanvas({
     // point (from 3 points on) closes the zone. Taps on other points do nothing
     // (they are grabbed to be moved), and a closed zone only moves.
     const editTapAt = (clientX: number, clientY: number) => {
-        if (!drawing || !mapSize) return
+        if (!mapSize) return
+        if (!drawing) {
+            // A closed zone only moves; a tap elsewhere may pick another boundary.
+            onEditTapOutside?.(toWorld({ clientX, clientY }), OUTLINE_HIT_PX / (zoom * mapSize.width))
+            return
+        }
         const pt = localPoint({ clientX, clientY })
         const first = currentLinePoints[0]
         if (allowPolygon && first && currentLinePoints.length >= 3
@@ -327,6 +388,11 @@ export default function MapCanvas({
             {showHint && (
                 <div className={styles.drawHint} role="status">
                     {allowPolygon ? t('map.tapToPlaceZone') : t('map.tapToPlaceLine')}
+                </div>
+            )}
+            {grabbing === 'shape' && (
+                <div className={`${styles.drawHint} ${styles.drawHintMoving}`} role="status">
+                    {closedAsPolygon ? t('map.movingZone') : t('map.movingLine')}
                 </div>
             )}
 

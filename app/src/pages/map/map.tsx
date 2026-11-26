@@ -29,6 +29,18 @@ import { LuCheck, LuEllipsis, LuPencil, LuPlay, LuRotateCcw, LuSquareCheck, LuTr
 import { Chip, ListRow, SectionLabel, ui } from '../../components/ui/ui'
 
 
+/** Is the point within `tolerance` (map units) of the polyline? */
+function nearPolyline(p: Point, vertices: Point[], tolerance: number) {
+    for (let i = 0; i + 1 < vertices.length; i++) {
+        const [ax, ay] = vertices[i], [bx, by] = vertices[i + 1]
+        const dx = bx - ax, dy = by - ay
+        const len2 = dx * dx + dy * dy
+        const t = len2 ? Math.max(0, Math.min(1, ((p[0] - ax) * dx + (p[1] - ay) * dy) / len2)) : 0
+        if (Math.hypot(p[0] - (ax + t * dx), p[1] - (ay + t * dy)) <= tolerance) return true
+    }
+    return false
+}
+
 // Delay between the end of a boundary change and its automatic send.
 const AUTO_SAVE_DELAY_MS = 1000
 
@@ -274,20 +286,49 @@ export default () => {
         setClosedAsPolygon(existingBoundary?.type === 'polygon')
     }, [mode])
 
+    // The boundary as it stands in the editor.
+    const boundaryFromEditor = () => ({
+        id: activeBoundaryId ?? uuidv4(),
+        name: editForm.name,
+        color: editForm.color,
+        function: closedAsPolygon ? ((robot.type !== RobotType.NeatoGen4 || editForm.zoneType === BoundaryTypes.CLEANING_ZONE) ? 'cleaning' as const : 'nogo' as const) : 'nogo' as const,
+        type: closedAsPolygon ? 'polygon' as const : 'polyline' as const,
+        vertices: currentLinePoints,
+        enabled: boundaries.find(b => b.id === activeBoundaryId)?.enabled ?? true
+    })
+
     const saveEditBoundary = () => {
         setMode(returnFromEditMode);
-        const id = activeBoundaryId ?? uuidv4();
-        const updated = {
-            id,
-            name: editForm.name,
-            color: editForm.color,
-            function: closedAsPolygon ? ((robot.type !== RobotType.NeatoGen4 || editForm.zoneType === BoundaryTypes.CLEANING_ZONE) ? 'cleaning' as const : 'nogo' as const) : 'nogo' as const,
-            type: closedAsPolygon ? 'polygon' as const : 'polyline' as const,
-            vertices: currentLinePoints,
-            enabled: true
-        };
+        const updated = boundaryFromEditor()
         setBoundaries(prev => upsertPreserveOrder(prev, updated));
     };
+
+    // While a zone is being edited, a tap on another zone or line of the map
+    // switches the editor to it (its points show up), keeping the changes made
+    // so far: every boundary can be reshaped without going back to the list.
+    const switchEditTo = (point: Point, tolerance: number) => {
+        const others = boundaries.filter(b => b.id !== activeBoundaryId).reverse()
+        const hit = others.find(b => b.type === 'polyline' && nearPolyline(point, b.vertices, tolerance))
+            ?? others.find(b => b.type === 'polygon' && pointInZone(point, b.vertices))
+        if (!hit) return false
+        const complete = closedAsPolygon ? currentLinePoints.length >= 3 : currentLinePoints.length >= 2
+        if (complete) {
+            const current = boundaryFromEditor()
+            setBoundaries(prev => upsertPreserveOrder(prev, current))
+        }
+        setActiveBoundaryId(hit.id)
+        setNewKind(hit.type === 'polyline' ? 'line' : 'zone')
+        setEditForm({
+            name: hit.name,
+            color: normalizeHex(hit.color) ?? pickUnusedPreset(boundaries.map(b => b.color)),
+            zoneType: hit.type === 'polygon'
+                ? (hit.function === 'cleaning' ? BoundaryTypes.CLEANING_ZONE : BoundaryTypes.NOGO_ZONE)
+                : BoundaryTypes.NOGO_LINE,
+        })
+        setCurrentLinePoints(hit.vertices)
+        setClosedAsPolygon(hit.type === 'polygon')
+        return true
+    }
 
     const updateForm = <T extends object>(update: UseState<T>, patch: Partial<T>) => {
         update(prev => ({ ...prev, ...patch }))
@@ -507,6 +548,8 @@ export default () => {
                     setDrawerOpen={setDrawerOpen}
                     allowPolygon={!lineOnly}
                     onTap={onMapTap}
+                    editKey={activeBoundaryId}
+                    onEditTapOutside={switchEditTo}
                 />
             ) : (
                 <canvas className={styles.canvas} />
