@@ -243,10 +243,10 @@ export default () => {
     // Auto-save: once a change is done (not while a boundary is being drawn),
     // send it. A failed send stops here until Retry, so it cannot loop.
     useEffect(() => {
-        if (!dirty || saving || saveFailed || !persistentMap || mode === 'boundary-edit') return
+        if (!dirty || saving || saveFailed || saveWarning || !persistentMap || mode === 'boundary-edit') return
         const timer = setTimeout(saveBoundaries, AUTO_SAVE_DELAY_MS)
         return () => clearTimeout(timer)
-    }, [boundaries, savedBoundaries, saving, saveFailed, persistentMap, mode])
+    }, [boundaries, savedBoundaries, saving, saveFailed, saveWarning, persistentMap, mode])
 
     // Leaving a map with unsaved changes asks first.
     const confirmDiscard = () => !dirty || window.confirm(t('ui.unsavedLeave'))
@@ -452,8 +452,8 @@ export default () => {
         </div>
     ) : (
         <div className={styles.headerButtons}>
-            {(saving || saveFailed) && (
-                <button type="button" className={`${styles.saveButton} ${styles.saveDirty} ${saveFailed ? styles.saveFailed : ''}`}
+            {(saving || saveFailed || (saveWarning && dirty)) && (
+                <button type="button" className={`${styles.saveButton} ${styles.saveDirty} ${saveFailed || saveWarning ? styles.saveFailed : ''}`}
                     disabled={saving} onClick={saveBoundaries}>
                     {saving ? t('ui.saving') : t('ui.saveRetry')}
                 </button>
@@ -603,7 +603,7 @@ export default () => {
                                 )}
                         </div>
 
-                        {dirty && saveFailed && (
+                        {dirty && (saveFailed || saveWarning) && (
                             <div className={styles.draftBanner} role="status">
                                 <span>{t('ui.unsavedChanges')}</span>
                                 <button type="button" onClick={undoChanges}><LuRotateCcw size={14} aria-hidden="true" />{t('ui.undoChanges')}</button>
