@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import styles from './map.module.scss'
-import { FaPlus, FaUndo } from 'react-icons/fa'
+import { FaUndo } from 'react-icons/fa'
 import { PiBoundingBox } from 'react-icons/pi'
 import type { Point, UseState } from '../../components/map/types'
 import { getWorldCoords } from '../../components/map/utils'
@@ -36,7 +36,6 @@ const OUTLINE_HIT_PX = 20      // a long press this close to the outline grabs t
 const LONG_PRESS_MS = 450
 const LONG_PRESS_SLOP_PX = 10  // moving more than this first means panning
 const FIRST_POINT_HIT_PX = 28  // a tap this close to the first point closes the zone
-const HINT_MS = 4000
 
 function distToSegment(p: { x: number, y: number }, a: { x: number, y: number }, b: { x: number, y: number }) {
     const dx = b.x - a.x, dy = b.y - a.y
@@ -105,14 +104,8 @@ export default function MapCanvas({
     const remember = (points: Point[] = currentLinePoints, closed = closedAsPolygon) => { history.current.push({ points, closed }) }
     useEffect(() => { history.current = [] }, [mode])
 
-    // "Tap the map to place the points": shown when drawing starts, and on +.
-    const [hintUntil, setHintUntil] = useState(0)
-    useEffect(() => {
-        if (!hintUntil) return
-        const timer = setTimeout(() => setHintUntil(0), Math.max(0, hintUntil - Date.now()))
-        return () => clearTimeout(timer)
-    }, [hintUntil])
-    const showHint = drawing && (currentLinePoints.length === 0 || hintUntil > 0)
+    // "Tap the map to place the points", until the first point is placed.
+    const showHint = drawing && currentLinePoints.length === 0
 
     // ── Moving points and shapes while editing ──
     // A press on a point drags that point; a long press on the shape (inside a
@@ -324,9 +317,6 @@ export default function MapCanvas({
                 <div className={styles.actionButtons}>
                     <div onClick={undo} className={styles.undo}>
                         <FaUndo size={20} color="var(--text)" />
-                    </div>
-                    <div onClick={() => setHintUntil(Date.now() + HINT_MS)} className={`${styles.add} ${closedAsPolygon ? styles.disabled : ''}`}>
-                        <FaPlus size={40} color="var(--text)" />
                     </div>
                     {allowPolygon && (
                         <div onClick={closeAsPolygon} className={`${styles.closePolygon} ${((currentLinePoints.length > 2) && !closedAsPolygon) ? '' : styles.disabled}`}>
