@@ -3,9 +3,9 @@ import styles from './schedule.module.scss'
 import Drawer from '../../components/drawer/drawer'
 
 import type { GetSchedule, ScheduleEvent } from './types'
-import { FaTrash } from 'react-icons/fa'
+import { LuPlus, LuTrash2 } from 'react-icons/lu'
+import { Chip, PageTitle, SectionLabel, Segmented, ui } from '../../components/ui/ui'
 import Input from '../../components/input/input'
-import Button from '../../components/button/button'
 import { GEN3_COMMANDS } from '../../http/gen3'
 import { CleaningMode } from '../../types/neato/gen3/state'
 import { useRobot } from '../../context/useRobot'
@@ -15,7 +15,6 @@ import Scheudle_gen4 from './scheudle_gen4'
 import { useTranslation } from 'react-i18next'
 import { dayKey } from '../../i18n/days'
 import { usePersistentMaps } from '../../loaders/resources'
-import type { UseState } from '../../components/map/types'
 import { fetchAllGen3Boundaries, getCachedZones } from '../../loaders/gen3Boundaries'
 
 export default () => {
@@ -29,7 +28,6 @@ export default () => {
     const [schedule, setSchedule] = useState<GetSchedule>()
     const [drawerOpen, setDrawerOpen] = useState(false)
 
-    const offset = serverInfo.utc_offset_minutes ?? 0
     const { data: persistentMaps } = usePersistentMaps()
 
     useEffect(() => {
@@ -37,16 +35,20 @@ export default () => {
         fetchAllGen3Boundaries(robot.serial, persistentMaps)
     }, [robot.serial, persistentMaps])
 
-    const zoneOptions = (persistentMaps ?? [])
-        .filter(m => 'enabled' in m && m.enabled)
-        .flatMap(m => getCachedZones(robot.serial, m.id).map(z => ({ value: z.id, label: `${m.name} - ${z.name}` })))
+    const enabledMaps = (persistentMaps ?? []).filter(m => 'enabled' in m && m.enabled)
+    const zoneOptions = enabledMaps
+        .flatMap(m => getCachedZones(robot.serial, m.id).map(z => ({ value: z.id, mapId: m.id, label: enabledMaps.length > 1 ? `${m.name} - ${z.name}` : z.name })))
 
+    // New slot form: several days at once (one robot event per day) and at most
+    // one zone: a robot event keeps a single boundaryId.
+    const [newDays, setNewDays] = useState<RobotDay[]>([])
+    const [newTime, setNewTime] = useState('10:00')
+    const [newMode, setNewMode] = useState<CleaningMode>(CleaningMode.ECO)
+    const [newZone, setNewZone] = useState<string>()
+    const [formError, setFormError] = useState<string>()
+    const toggleDay = (d: RobotDay) => setNewDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d])
+    const toggleNewZone = (id: string) => setNewZone(prev => prev === id ? undefined : id)
 
-    const [scheduleForm, SetScheduleForm] = useState<ScheduleEvent>({
-        startTime: '',
-        day: -1,
-        mode: 0
-    })
 
     const getSchedule = () => {
         GEN3_COMMANDS.getSchedule(robot.serial).then(res => {
@@ -65,120 +67,140 @@ export default () => {
         GEN3_COMMANDS.setSchedule(robot.serial, schedule.events).finally(() => getSchedule())
     }
 
-    const updateForm = <T extends object>(update: UseState<T>, patch: Partial<T>) => {
-        update(prev => ({
-            ...prev,
-            ...patch
-        }))
-    }
-
     if (!schedule) return
 
+    // Week strip, Monday first; a day is lit when at least one slot uses it.
+    const week = [RobotDay.MONDAY, RobotDay.TUESDAY, RobotDay.WEDNESDAY, RobotDay.THURSDAY, RobotDay.FRIDAY, RobotDay.SATURDAY, RobotDay.SUNDAY]
+    const busyDays = new Set((schedule.events ?? []).map(e => e.day))
+    const zoneName = (id?: string) => id ? zoneOptions.find(o => o.value === id)?.label ?? id : undefined
+    // Sorted by day (Monday first) then time, keeping the index the robot uses.
+    const events = (schedule.events ?? []).map((e, index) => ({ e, index }))
+        .sort((x, y) => week.indexOf(x.e.day) - week.indexOf(y.e.day) || x.e.startTime.localeCompare(y.e.startTime))
+
     return (
-        <div className={styles.container}>
+        <div className={`${ui.page} ${styles.container}`}>
+            <PageTitle>{t('ui.scheduleTitle')}</PageTitle>
 
-            <div className={styles.featureList}>
-                <div className={`${styles.item} ${styles.staticItem}`}>
-                    <div className={styles.info}>
-                        <span>{t('schedule.schedule')}</span>
-                        {serverInfo && (
-                            <span className={styles.type}>{serverInfo.timezone}</span>
-                        )}
-                    </div>
-                    <Input type="switch" skipSection={true} value={schedule.enabled} onChange={() => {
-                        let cmd = GEN3_COMMANDS.enableSchedule;
-                        if (schedule.enabled) cmd = GEN3_COMMANDS.disableSchedule;
-                        cmd(robot.serial).then(() => getSchedule());
-                    }} />
-                </div>
-
-                <hr style={{ width: '90%' }} />
-
-                <div className={`${styles.item} ${styles.actionItem}`} onClick={() => setDrawerOpen(true)}>
-                    <div className={styles.info}>
-                        <span>{t('schedule.newSchedule')}</span>
-                        <span className={styles.type}>{t('schedule.addOneMore')}</span>
-                    </div>
-                </div>
-
-                {schedule.events?.map((item, i) => {
-                    return (
-                        <div key={i} className={styles.item}>
-                            <div className={styles.info}>
-                                <span>{item.startTime}</span>
-                                <span className={styles.type}>
-                                    {t('schedule.gen3Summary', { day: t(`days.${dayKey(item.day)}`), mode: CleaningMode[item.mode] })}
-                                    {item.boundary && ` | ${t('schedule.gen3SummaryZone', { zone: item.boundary.name })}`}
-                                </span>
-                            </div>
-                            <FaTrash onClick={() => removeEvent(i)} />
-                        </div>
-                    )
-                })}
-                {schedule.events?.length === 0 && (
-                    <span style={{ textAlign: 'center' }}>{t('schedule.noSchedules')}</span>
-                )}
+            <div className={`${ui.card} ${ui.rowCard}`}>
+                <span className={ui.grow}>
+                    <span className={ui.rowTitle}>{t('ui.scheduled')}</span>
+                    {serverInfo && <span className={ui.muted}>{serverInfo.timezone}</span>}
+                </span>
+                <Input type="switch" skipSection={true} value={schedule.enabled} onChange={() => {
+                    let cmd = GEN3_COMMANDS.enableSchedule;
+                    if (schedule.enabled) cmd = GEN3_COMMANDS.disableSchedule;
+                    cmd(robot.serial).then(() => getSchedule());
+                }} />
             </div>
+
+            <div className={ui.card}>
+                <SectionLabel>{t('ui.thisWeek')}</SectionLabel>
+                <div className={styles.week}>
+                    {week.map(d => (
+                        <div key={d} className={`${styles.day} ${busyDays.has(d) ? styles.dayOn : ''}`}>
+                            <span>{t(`days.${dayKey(d)}`).slice(0, 1).toUpperCase()}</span>
+                            <span className={styles.dot} />
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {events.map(({ e, index }) => (
+                <div key={index} className={ui.card}>
+                    <div className={styles.slotHead}>
+                        <span className={styles.time}>{e.startTime}</span>
+                        <button type="button" className={styles.remove} aria-label={t('common.delete')} onClick={() => removeEvent(index)}>
+                            <LuTrash2 size={18} />
+                        </button>
+                    </div>
+                    <div className={ui.rowTitle}>{t(`days.${dayKey(e.day)}`)}</div>
+                    <div className={styles.pills}>
+                        {/* getSchedule returns the zone as boundary {id, name}; a slot not reloaded yet only has boundaryId. */}
+                        <span className={styles.pill}>{(() => {
+                            const name = e.boundary?.name ?? zoneName(e.boundaryId ?? e.boundary?.id)
+                            return name ? t('ui.zone', { name }) : t('ui.wholeHouse')
+                        })()}</span>
+                        <span className={styles.pill}>{e.mode === CleaningMode.ECO ? t('modes.eco') : t('modes.normal')}</span>
+                    </div>
+                </div>
+            ))}
+            {events.length === 0 && (
+                <span className={ui.info} style={{ textAlign: 'center' }}>{t('schedule.noSchedules')}</span>
+            )}
+
+            <div className={ui.info}>{t('ui.scheduleZoneHint')}</div>
+
+            <button type="button" className={`${ui.primary} ${styles.newSlot}`} onClick={() => { setFormError(undefined); setDrawerOpen(true) }}>
+                <LuPlus size={20} aria-hidden="true" />{t('ui.newSlot')}
+            </button>
+
             <Drawer
                 open={drawerOpen}
                 handle={false}
                 onOpenChange={setDrawerOpen}
-                openHeightPercent={70}
-                title={t('schedule.addEvent')}
+                openHeightPercent={88}
+                title={t('ui.newSlotTitle')}
+                showBackButton
+                onBackButtonClick={() => setDrawerOpen(false)}
+                footer={<>
+                    {formError && <div className={styles.formError} role="alert">{formError}</div>}
+
+                    <button type="button" className={ui.primary} onClick={() => {
+                        if (newDays.length === 0) { setFormError(t('ui.pickDay')); return }
+                        const mapId = zoneOptions.find(o => o.value === newZone)?.mapId
+                        const zones: Partial<ScheduleEvent> = newZone ? { boundaryId: newZone, ...(mapId ? { mapId } : {}) } : {}
+                        const added: ScheduleEvent[] = newDays.map(day => ({ day, startTime: newTime, mode: newMode, ...zones }))
+                        GEN3_COMMANDS.setSchedule(robot.serial, [...added, ...schedule.events]).then(res => {
+                            if ((res.data as { result?: string })?.result && (res.data as { result?: string }).result !== 'ok') {
+                                setFormError(t('ui.scheduleSaveFailed'))
+                                return
+                            }
+                            setDrawerOpen(false)
+                            setNewDays([]); setNewZone(undefined); setFormError(undefined)
+                        }).catch(() => setFormError(t('ui.scheduleSaveFailed'))).finally(() => getSchedule())
+                    }}>
+                        {t('ui.saveSlots', { count: Math.max(newDays.length, 1) })}
+                    </button>
+                </>}
             >
+                <div className={ui.drawerBody}>
+                    <SectionLabel>{t('ui.days')}</SectionLabel>
+                    <div className={styles.week}>
+                        {week.map(d => (
+                            <button key={d} type="button" aria-pressed={newDays.includes(d)} aria-label={t(`days.${dayKey(d)}`)}
+                                className={`${styles.day} ${styles.dayButton} ${newDays.includes(d) ? styles.dayOn : ''}`} onClick={() => toggleDay(d)}>
+                                <span>{t(`days.${dayKey(d)}`).slice(0, 3)}</span>
+                                <span className={styles.dot} />
+                            </button>
+                        ))}
+                    </div>
+                    <div className={styles.presets}>
+                        <button type="button" className={styles.preset} onClick={() => setNewDays(week)}>{t('ui.everyDay')}</button>
+                        <button type="button" className={styles.preset} onClick={() => setNewDays(week.slice(0, 5))}>{t('ui.weekdays')}</button>
+                        <button type="button" className={styles.preset} onClick={() => setNewDays(week.slice(5))}>{t('ui.weekend')}</button>
+                    </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    <Input
-                        type="select"
-                        label={t('common.day')}
-                        options={[
-                            { value: RobotDay.MONDAY, label: t('days.monday') },
-                            { value: RobotDay.TUESDAY, label: t('days.tuesday') },
-                            { value: RobotDay.WEDNESDAY, label: t('days.wednesday') },
-                            { value: RobotDay.THURSDAY, label: t('days.thursday') },
-                            { value: RobotDay.FRIDAY, label: t('days.friday') },
-                            { value: RobotDay.SATURDAY, label: t('days.saturday') },
-                            { value: RobotDay.SUNDAY, label: t('days.sunday') },
-                        ]}
-                        value={scheduleForm.day}
-                        onChange={(day) => updateForm(SetScheduleForm, { day })}
-                    />
+                    <SectionLabel right={<span className={ui.small}>{serverInfo?.timezone ?? 'UTC'}</span>}>{t('ui.time')}</SectionLabel>
+                    <input type="time" className={styles.timeInput} value={newTime} aria-label={t('ui.time')} onChange={e => setNewTime(e.target.value)} />
 
-                    <Input
-                        type="select"
-                        label={t('common.mode')}
-                        options={[
-                            { value: CleaningMode.ECO, label: t('modes.eco') },
-                            { value: CleaningMode.NORMAL, label: t('modes.normal') },
-                        ]}
-                        value={scheduleForm.mode}
-                        onChange={(mode) => updateForm(SetScheduleForm, { mode })}
-                    />
-
-                    <Input
-                        type="time"
-                        label={`${t('common.time')} (${serverInfo?.timezone ?? 'UTC'})`}
-                        value={scheduleForm.startTime}
-                        onChange={(startTime) => updateForm(SetScheduleForm, { startTime })} />
+                    <SectionLabel>{t('ui.power')}</SectionLabel>
+                    <Segmented label={t('ui.power')} value={newMode} onChange={setNewMode} options={[
+                        { value: CleaningMode.ECO, label: t('modes.eco') },
+                        { value: CleaningMode.NORMAL, label: t('modes.normal') },
+                    ]} />
 
                     {zoneOptions.length > 0 && (
-                        <Input
-                            type="select"
-                            label={t('schedule.selectZones')}
-                            extraInfo={t('schedule.selectZonesHelp')}
-                            options={zoneOptions}
-                            allowDeselect
-                            value={scheduleForm.boundaryId}
-                            onChange={(boundaryId) => updateForm(SetScheduleForm, { boundaryId })}
-                        />
+                        <>
+                            <SectionLabel>{t('ui.zonePick')}</SectionLabel>
+                            <div className={ui.grid2}>
+                                {zoneOptions.map(o => (
+                                    <Chip key={o.value} row label={o.label} active={newZone === o.value} onClick={() => toggleNewZone(o.value)} />
+                                ))}
+                            </div>
+                            <div className={ui.info}>{t('ui.wholeHouseHint')}</div>
+                        </>
                     )}
-
-                    <Button text={t('common.save')} style='success' onClick={() => {
-                        setDrawerOpen(false)
-                        GEN3_COMMANDS.setSchedule(robot.serial, [scheduleForm, ...schedule.events]).finally(() => getSchedule())
-                    }} />
                 </div>
-
             </Drawer>
 
         </div>

@@ -23,6 +23,48 @@
     }
 }
 
+.loupe {
+    position: absolute;
+    z-index: 6;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    border: 3px solid #ffffff;
+    box-shadow: 0 4px 16px rgb(0 0 0 / 0.35);
+    background: $bg;
+    pointer-events: none;
+}
+
+.drawHint {
+    position: absolute;
+    top: calc(env(safe-area-inset-top, 0px) + 1.2rem);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+    max-width: calc(100% - 3.2rem);
+    padding: 0.9rem 1.4rem;
+    border-radius: var(--radius-control);
+    background: $surface-neutral-2;
+    color: $text-primary;
+    font-size: 1.3rem;
+    line-height: 1.4;
+    text-align: center;
+    box-shadow: 0 2px 12px rgb(0 0 0 / 0.25);
+    pointer-events: none;
+}
+
+.drawHintMoving {
+    background: $accent;
+    color: $on-accent;
+    font-weight: 600;
+    animation: drawHintPop 0.25s ease-out;
+}
+
+@keyframes drawHintPop {
+    from { transform: translateX(-50%) scale(0.85); opacity: 0; }
+    to { transform: translateX(-50%) scale(1); opacity: 1; }
+}
+
 .actionButtons {
     display: flex;
     position: absolute;
@@ -53,13 +95,14 @@
         gap: 1rem;
     }
 
-    .add {
-        background: $accent;
-        padding: 3rem;
-    }
 
     .cancel {
         background: $err-bg;
+    }
+
+    .doneFab {
+        background: $accent;
+        color: $on-accent;
     }
 
     .undo,
@@ -285,4 +328,312 @@
         border-color: $accent;
         color: $accent;
     }
+}
+// ── Redesigned zone list ──
+.mapTabs {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+}
+
+.mapTab {
+    min-height: 3.6rem;
+    padding: 0 1.4rem;
+    border-radius: 999px;
+    border: 1px solid $border;
+    background: $surface;
+    color: $text-muted;
+    font: inherit;
+    font-size: 1.3rem;
+    font-weight: 600;
+    @include pressable;
+}
+
+.mapTabOn {
+    border-color: $accent;
+    background: $accent;
+    color: $on-accent;
+    font-weight: 800;
+}
+
+.mapActions {
+    position: sticky;
+    bottom: 0;
+    margin-top: 0.8rem;
+    padding: 0.8rem 0;
+    box-shadow: 0 -0.8rem 1.2rem -0.8rem rgba(0, 0, 0, 0.15);
+    background: $bg;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.8rem;
+    animation: barIn 0.2s ease-out;
+}
+
+// Edit mode: Edit + Delete side by side
+.mapActions2 {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+
+    button {
+        white-space: nowrap;
+        padding: 0 0.8rem;
+    }
+
+    button:disabled {
+        opacity: 0.45;
+    }
+}
+
+.dangerFill {
+    background: $err;
+    color: #ffffff;
+}
+
+@keyframes barIn {
+    from { opacity: 0; transform: translateY(0.6rem); }
+    to { opacity: 1; transform: none; }
+}
+
+.addButton {
+    min-height: 3.6rem;
+    padding: 0 1.2rem;
+    border-radius: 999px;
+    border: 1px solid $accent;
+    background: $accent-soft;
+    color: $text-primary;
+    font: inherit;
+    font-size: 1.25rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    @include pressable;
+}
+
+.saveButton {
+    min-height: 3.6rem;
+    padding: 0 1.4rem;
+    border-radius: 999px;
+    border: 1px solid $border;
+    background: $surface;
+    color: $text-muted;
+    font: inherit;
+    font-size: 1.3rem;
+    font-weight: 700;
+    @include pressable;
+}
+
+.saveDirty {
+    border-color: $accent;
+    background: $accent;
+    color: $on-accent;
+}
+
+.saveWarning {
+    background: $warn-bg;
+    color: $warn-text;
+}
+
+.saveFailed {
+    border-color: $err;
+    background: $err;
+    color: #ffffff;
+}
+
+// ── Header: map name (tap to rename), Save, options menu ──
+.titleButton {
+    border: none;
+    background: none;
+    padding: 0.4rem 0.8rem;
+    border-radius: 0.8rem;
+    color: inherit;
+    font: inherit;
+    cursor: text;
+    max-width: 55vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+// While renaming, the back arrow is hidden and the header's Save / Cancel
+// buttons sit on the right (absolute, 2 x 4.4rem + gap, 1.6rem from the edge):
+// the field takes the room left of them instead of being centred under them.
+.renameInput {
+    position: absolute;
+    left: 1.6rem;
+    right: calc(1.6rem + 2 * 4.4rem + 0.6rem + 1rem);
+    width: auto;
+    height: 4rem;
+    box-sizing: border-box;
+    padding: 0 1rem;
+    border-radius: var(--radius-control);
+    border: 2px solid $accent;
+    background: $surface;
+    color: $text-primary;
+    font: inherit;
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.headerButtons {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.iconButton,
+.iconButtonAccent {
+    width: 4.4rem;
+    height: 4.4rem;
+    border-radius: var(--radius-control);
+    border: 1px solid $border;
+    background: $surface;
+    color: $text-primary;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    @include pressable;
+}
+
+.iconButtonOn {
+    border: 2px solid $accent;
+}
+
+.iconButtonAccent {
+    border-color: $accent;
+    background: $accent;
+    color: $on-accent;
+}
+
+.menuAnchor {
+    position: relative;
+}
+
+.menu {
+    position: absolute;
+    top: calc(100% + 0.6rem);
+    right: 0;
+    z-index: 10;
+    min-width: 24rem;
+    padding: 0.6rem;
+    border-radius: var(--radius-card);
+    border: 1px solid $border-strong;
+    background: $surface;
+    box-shadow: var(--shadow-lg);
+    display: flex;
+    flex-direction: column;
+    animation: barIn 0.15s ease-out;
+
+    button {
+        min-height: 4.8rem;
+        padding: 0 1.2rem;
+        border: none;
+        border-radius: 0.8rem;
+        background: none;
+        color: $text-primary;
+        font: inherit;
+        font-size: 1.45rem;
+        text-align: left;
+        display: flex;
+        align-items: center;
+        gap: 1.2rem;
+        @include pressable;
+    }
+}
+
+.menuSeparator {
+    height: 1px;
+    margin: 0.4rem 0.8rem;
+    background: $border;
+}
+
+.menu .menuDanger {
+    color: $err;
+}
+
+// ── Zone list ──
+.activeSwitch {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.draftBanner {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.8rem 1.2rem;
+    border-radius: var(--radius-control);
+    border: 1px solid $border-strong;
+    background: $surface;
+    font-size: 1.3rem;
+
+    span {
+        flex: 1;
+    }
+
+    button {
+        min-height: 3.6rem;
+        padding: 0 1rem;
+        border-radius: 0.8rem;
+        border: 1px solid $border-strong;
+        background: none;
+        color: $text-primary;
+        font: inherit;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        @include pressable;
+    }
+}
+
+.doneButton {
+    min-height: 3.6rem;
+    padding: 0 1.4rem;
+    border-radius: 999px;
+    border: none;
+    background: $accent;
+    color: $on-accent;
+    font: inherit;
+    font-size: 1.3rem;
+    font-weight: 800;
+    @include pressable;
+}
+
+// Entering or leaving edit mode: the chips swap their badge for a checkbox
+.zoneGrid > * {
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.swatchLine {
+    width: 1.8rem;
+    height: 0.3rem;
+    border-radius: 0.2rem;
+    display: block;
+}
+
+.swatchZone {
+    width: 1.4rem;
+    height: 1.4rem;
+    border-radius: 0.3rem;
+    display: block;
+    opacity: 0.8;
+}
+
+.check {
+    width: 2.2rem;
+    height: 2.2rem;
+    flex: none;
+    border-radius: 0.6rem;
+    border: 2px solid $text-muted;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.checkOn {
+    background: $accent;
+    border-color: $accent;
+    color: $on-accent;
 }
