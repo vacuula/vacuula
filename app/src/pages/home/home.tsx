@@ -282,7 +282,21 @@ export default function Home() {
                 state = (await Http.sendCmd<Neato.Gen3.GetRobotStateResponse>(robot.serial, { cmd: 'getRobotState' })).data
                 if (state?.availableCommands?.goToBase) {
                     const sent = await GEN3_COMMANDS.sendToBase(robot.serial)
-                    if ((sent.data as { result?: string })?.result !== 'ok') setNotice(t('ui.baseRefused'))
+                    if ((sent.data as { result?: string })?.result !== 'ok') {
+                        setNotice(t('ui.baseRefused'))
+                        return
+                    }
+                    // Paused robots (D7 at least) accept sendToBase but stay
+                    // paused until resumed: resume so it actually heads home.
+                    for (let j = 0; j < 12; j++) { // up to 6 s
+                        await new Promise(resolve => setTimeout(resolve, 500))
+                        state = (await Http.sendCmd<Neato.Gen3.GetRobotStateResponse>(robot.serial, { cmd: 'getRobotState' })).data
+                        if (state?.state === Neato.Gen3.RobotState.BUSY) return
+                        if (state?.state === Neato.Gen3.RobotState.PAUSED && state.availableCommands?.resume) {
+                            await GEN3_COMMANDS.resumeCleaning(robot.serial)
+                            return
+                        }
+                    }
                     return
                 }
                 await new Promise(resolve => setTimeout(resolve, 500))
