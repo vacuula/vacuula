@@ -96,6 +96,13 @@ export default () => {
 
     if (!schedule) return
 
+    // Never let the empty-form defaults (day:-1, mode:INVALID) reach setSchedule:
+    // the robot rejects an invalid event and WIPES THE WHOLE SCHEDULE (#95-class).
+    const canSave =
+        scheduleForm.day >= 0 &&
+        scheduleForm.mode !== CleaningMode.INVALID &&
+        scheduleForm.startTime !== ''
+
     return (
         <div className={styles.container}>
 
@@ -195,7 +202,8 @@ export default () => {
                         />
                     )}
 
-                    <Button text={t('common.save')} style='success' onClick={() => {
+                    <Button text={t('common.save')} style='success' disabled={!canSave} onClick={() => {
+                        if (!canSave) return
                         setDrawerOpen(false)
                         const events = editIndex === null
                             ? [scheduleForm, ...schedule.events]
