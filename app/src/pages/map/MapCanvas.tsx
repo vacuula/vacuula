@@ -1,10 +1,9 @@
-import { useState } from 'react'
+import { useRef } from 'react'
 import styles from './map.module.scss'
 import { FaPlus, FaUndo } from 'react-icons/fa'
 import { PiBoundingBox } from 'react-icons/pi'
-import { DRAWING } from '../../components/map/constants'
 import type { Point, UseState } from '../../components/map/types'
-import { getCrosshairWorldCoords } from '../../components/map/utils'
+import { getCrosshairWorldCoords, getWorldCoords } from '../../components/map/utils'
 import { useMap, type ExtraDrawFn } from '../../components/map/useMap'
 
 // Single source of truth for the page's mode union — map.tsx imports this rather
@@ -22,6 +21,10 @@ interface MapCanvasProps {
     closedAsPolygon: boolean
     setClosedAsPolygon: UseState<boolean>
     setDrawerOpen: (open: boolean) => void
+    /** false while drawing a no-go line: the "close as polygon" button is hidden */
+    allowPolygon?: boolean
+    /** A tap (no drag) on the map outside drawing mode, in map coordinates (0..1). */
+    onTap?: (point: Point) => void
 }
 
 // Owns everything that genuinely can't exist without a selected map: the hook, the
@@ -37,11 +40,10 @@ export default function MapCanvas({
     setCurrentLinePoints,
     closedAsPolygon,
     setClosedAsPolygon,
-    setDrawerOpen
+    setDrawerOpen,
+    allowPolygon = true,
+    onTap
 }: MapCanvasProps) {
-    // TODO: decide on how exactly i want this to work, for now just show the button if there is at least 3 points.
-    const [showCloseAsPolygon, setShowCloseAsPolygon] = useState(false)
-
     const { canvasRef, mapSize, zoom, offset, isDragging, hasMoved, canvasHandlers } = useMap({
         mapId,
         runId,
@@ -51,6 +53,7 @@ export default function MapCanvas({
     })
 
     const addPointAtCrosshair = () => {
+        if (!mapSize) return // map not loaded yet
         const coords = getCrosshairWorldCoords(canvasRef, offset, zoom, mapSize)
         setCurrentLinePoints(prev => [...prev, coords])
     }
@@ -72,17 +75,39 @@ export default function MapCanvas({
 
     const onTouchMove = (e: React.TouchEvent) => {
         canvasHandlers.onTouchMove(e)
-        if (currentLinePoints.length > 1 && mapSize) {
-            const coords = getCrosshairWorldCoords(canvasRef, offset, zoom, mapSize)
-            const [fx, fy] = currentLinePoints[0]
-            const distance = Math.sqrt((coords[0] - fx) ** 2 + (coords[1] - fy) ** 2)
-            setShowCloseAsPolygon(distance < DRAWING.CLOSE_THRESHOLD)
-        }
+    }
+
+    const tapAt = (clientX: number, clientY: number) => {
+        const canvas = canvasRef.current
+        if (!onTap || !canvas || !mapSize || mode === 'boundary-edit') return
+        const rect = canvas.getBoundingClientRect()
+        onTap(getWorldCoords(clientX - rect.left, clientY - rect.top, offset, zoom, mapSize))
     }
 
     const onTouchEnd = (e: React.TouchEvent) => {
         canvasHandlers.onTouchEnd(e)
         if (mode === 'boundary-edit' && !hasMoved) addPointAtCrosshair()
+    }
+
+    // Taps are detected with pointer events: one event per finger or click,
+    // whatever the browser emulates afterwards, and a small slip of the finger
+    // still counts as a tap (the pan handlers flag any move at all).
+    const pointersDown = useRef(0)
+    const tapStart = useRef<{ x: number, y: number, t: number } | null>(null)
+    const onPointerDown = (e: React.PointerEvent) => {
+        pointersDown.current += 1
+        tapStart.current = pointersDown.current === 1 && e.button === 0 ? { x: e.clientX, y: e.clientY, t: Date.now() } : null
+    }
+    const onPointerUp = (e: React.PointerEvent) => {
+        pointersDown.current = Math.max(0, pointersDown.current - 1)
+        const start = tapStart.current
+        if (pointersDown.current > 0) { tapStart.current = null; return }
+        tapStart.current = null
+        if (start && Math.hypot(e.clientX - start.x, e.clientY - start.y) < 10 && Date.now() - start.t < 600) tapAt(e.clientX, e.clientY)
+    }
+    const onPointerCancel = () => {
+        pointersDown.current = 0
+        tapStart.current = null
     }
 
     return (
@@ -93,6 +118,9 @@ export default function MapCanvas({
                 onMouseDown={canvasHandlers.onMouseDown}
                 onMouseMove={canvasHandlers.onMouseMove}
                 onMouseUp={canvasHandlers.onMouseUp}
+                onPointerDown={onPointerDown}
+                onPointerUp={onPointerUp}
+                onPointerCancel={onPointerCancel}
                 onMouseLeave={canvasHandlers.onMouseLeave}
                 onWheel={canvasHandlers.onWheel}
                 onTouchStart={canvasHandlers.onTouchStart}
@@ -112,9 +140,11 @@ export default function MapCanvas({
                     <div onClick={addPointAtCrosshair} className={`${styles.add} ${closedAsPolygon ? styles.disabled : ''}`}>
                         <FaPlus size={40} color="var(--text)" />
                     </div>
-                    <div onClick={closeAsPolygon} className={`${styles.closePolygon} ${((currentLinePoints.length > 2) && !closedAsPolygon) ? '' : styles.disabled}`}>
-                        <PiBoundingBox size={20} color="var(--text)" />
-                    </div>
+                    {allowPolygon && (
+                        <div onClick={closeAsPolygon} className={`${styles.closePolygon} ${((currentLinePoints.length > 2) && !closedAsPolygon) ? '' : styles.disabled}`}>
+                            <PiBoundingBox size={20} color="var(--text)" />
+                        </div>
+                    )}
                 </div>
             )}
         </>

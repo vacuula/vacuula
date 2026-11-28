@@ -9,22 +9,24 @@ import { Http } from '../../http'
 import { Neato, RobotType, type Robot } from '../../types'
 
 import MapCanvas, { type MapMode } from './MapCanvas'
+import type { ExtraDrawFn } from '../../components/map/useMap'
 import { GEN4_COMMANDS } from '../../http/gen4'
 import { useRobot } from '../../context/useRobot'
 import { usePersistentMaps } from '../../loaders/resources'
 import type { Floorplan } from '../../types/neato/gen4'
 import { v4 as uuidv4 } from 'uuid';
 import { useTranslation } from 'react-i18next'
-import i18n from '../../i18n'
 import { useGetPromotedFloorplan } from '../../utils/floormaps'
 import type { NoGoLine, Point, UseState, Zone } from '../../components/map/types'
-import { drawZones, drawNoGoLines, drawBase, drawCrosshair, drawInProgressPolyline, onDockImageReady } from '../../components/map/drawingFunctions'
+import { drawZones, drawZonesLabelled, drawNoGoLines, drawBase, drawCrosshair, drawInProgressPolyline, onDockImageReady, pointInZone } from '../../components/map/drawingFunctions'
 import { calcRelevancy, upsertPreserveOrder } from '../../components/map/utils'
-import { normalizeHex, pickUnusedPreset, withAlpha } from '../../components/map/color'
+import { normalizeHex, pickUnusedPreset } from '../../components/map/color'
 import ColorPicker from '../../components/colorPicker/ColorPicker'
 import { isDocked } from '../../components/topbar/robotInfo'
 import { fetchGen3MapBoundaries } from '../../loaders/gen3Boundaries'
 import { getGen3CleaningMode, getGen3NavigationMode, getGen4CleaningMode, getGen4NavigationMode } from '../../utils/modes'
+import { LuCheck, LuEllipsis, LuPencil, LuPlay, LuRotateCcw, LuSquareCheck, LuTrash2, LuX } from 'react-icons/lu'
+import { Chip, ListRow, SectionLabel, ui } from '../../components/ui/ui'
 
 
 export default () => {
@@ -38,22 +40,37 @@ export default () => {
         zoneType: BoundaryTypes.NOGO_LINE
     });
 
-    const [mapEditform, setMapEditForm] = useState({
-        name: '',
-        enabled: true
-    })
-
     const [currentLinePoints, setCurrentLinePoints] = useState<Point[]>([])
     const [closedAsPolygon, setClosedAsPolygon] = useState(false)
     const [persistentMap, setPersistentMap] = useState<string>()
     const firstLoad = useRef(true);
 
     const [mode, setMode] = useState<MapMode>('maps')
+
+    // Zones picked for cleaning, in cleaning order. Gen3 cleans one zone per run.
+    const [selectedZones, setSelectedZones] = useState<string[]>([])
+    // Edit mode ("Edit zones"): boundaries are ticked, then edited or deleted together.
+    const [managing, setManaging] = useState(false)
+    const [checked, setChecked] = useState<string[]>([])
+    const [menuOpen, setMenuOpen] = useState(false)
+    const [renaming, setRenaming] = useState(false)
+    const [nameDraft, setNameDraft] = useState('')
     const [returnFromEditMode, SetReturnFromEditMode] = useState<'boundaries' | 'boundary-info'>('boundaries')
     const [activeBoundaryId, setActiveBoundaryId] = useState<string | undefined>(undefined);
 
     const { robot } = useRobot()
-    const skipNextPostRef = useRef(false)
+    // Boundary changes stay local until Save: every save makes a gen3 robot
+    // drop its connection for about a minute, so they are sent all at once.
+    const [savedBoundaries, setSavedBoundaries] = useState('[]')
+    const [saving, setSaving] = useState(false)
+    const [saveFailed, setSaveFailed] = useState(false)
+    const [saveNotice, setSaveNotice] = useState<string>()
+    useEffect(() => {
+        if (!saveNotice) return
+        const timer = setTimeout(() => setSaveNotice(undefined), 60000)
+        return () => clearTimeout(timer)
+    }, [saveNotice])
+    const dirty = JSON.stringify(boundaries) !== savedBoundaries
 
     const { data: persistentMaps, refresh: updatePersistentMaps } = usePersistentMaps()
     const getPromotedFloorplan = useGetPromotedFloorplan()
@@ -77,13 +94,15 @@ export default () => {
         }
     }, [persistentMaps])
 
-    const extraDraw = useCallback((ctx, canvas, currentZoom, currentOffset, mapSize) => {
+    const extraDraw = useCallback<ExtraDrawFn>((ctx, canvas, currentZoom, currentOffset, mapSize) => {
         const showBoundaries = mode === 'boundary-edit'
             ? boundaries.filter(b => b.id !== activeBoundaryId)
             : boundaries
 
-        drawZones(ctx, showBoundaries.filter(b => b.type === 'polygon'), currentZoom, currentOffset, mapSize)
-        drawNoGoLines(ctx, showBoundaries.filter(b => b.type === 'polyline'), currentZoom, currentOffset, mapSize)
+        if (mode === 'boundary-edit') drawZones(ctx, showBoundaries.filter(b => b.type === 'polygon'), currentZoom, currentOffset, mapSize)
+        else drawZonesLabelled(ctx, showBoundaries.filter((b): b is Zone => b.type === 'polygon'), currentZoom, currentOffset, mapSize,
+            { picked: managing ? checked : selectedZones, numbered: !managing && robot.type !== RobotType.NeatoGen3 })
+        drawNoGoLines(ctx, showBoundaries.filter((b): b is NoGoLine => b.type === 'polyline'), currentZoom, currentOffset, mapSize)
 
         // TODO: rework this base drawing, very hacky for quick release...
         const map = persistentMaps?.find(p => p.id === persistentMap)
@@ -110,7 +129,7 @@ export default () => {
                 drawInProgressPolyline(ctx, currentLinePoints, currentZoom, currentOffset, mapSize)
             }
         }
-    }, [boundaries, activeBoundaryId, mode, currentLinePoints, closedAsPolygon, editForm.color, persistentMaps, persistentMap, dockReady])
+    }, [boundaries, activeBoundaryId, mode, currentLinePoints, closedAsPolygon, editForm.color, persistentMaps, persistentMap, dockReady, managing, checked, selectedZones])
 
     // Fetch boundaries when persistentMap changes
     useEffect(() => {
@@ -130,57 +149,64 @@ export default () => {
 
     const getMapBoundaries = () => {
         if (!persistentMap) return
-        skipNextPostRef.current = true
+        const loaded = (b: (NoGoLine | Zone)[]) => {
+            setBoundaries(b)
+            setSavedBoundaries(JSON.stringify(b))
+        }
         if (robot.type === RobotType.NeatoGen4) {
-            Http.getBoundaries(robot.serial, persistentMap).then(res => setBoundaries(res.data))
+            Http.getBoundaries(robot.serial, persistentMap).then(res => loaded(res.data))
         } else {
-            // GEN3_COMMANDS.getMapBoundaries(robot.serial, persistentMap).then(res => setBoundaries(res.data.data.boundaries))
-            fetchGen3MapBoundaries(robot.serial, persistentMap).then(b => setBoundaries([...b]))
+            fetchGen3MapBoundaries(robot.serial, persistentMap).then(b => loaded([...b]))
         }
     }
 
-    useEffect(() => {
-        if (!persistentMap) return;
-        if (skipNextPostRef.current) {
-            skipNextPostRef.current = false
-            return
-        }
-        if (robot.type === RobotType.NeatoGen4) {
-            Http.postBoundaries(robot.serial, persistentMap, boundaries).then(() => {
-                getMapBoundaries();
+    const saveBoundaries = async () => {
+        if (!persistentMap || !dirty) return
+        setSaving(true)
+        setSaveFailed(false)
+        const snapshot = boundaries
+        try {
+            if (robot.type === RobotType.NeatoGen4) {
+                await Http.postBoundaries(robot.serial, persistentMap, snapshot)
+                getMapBoundaries()
                 const map = persistentMaps?.find(p => p.id === persistentMap)
                 // If the map is promoted, promote it again
                 if (map && 'promoted' in map && map.promoted) {
                     Http.promoteFloorplan(robot.serial, map.id).then(() => updatePersistentMaps());
                 }
-            });
-            return
+            } else {
+                const updatedBoundaries = snapshot.map(boundary =>
+                    boundary.type === 'polygon'
+                        ? { ...boundary, relevancy: calcRelevancy(boundary.vertices) }
+                        : { ...boundary, type: 'polyline' as const }
+                );
+                const res = await GEN3_COMMANDS.setMapBoundaries(robot.serial, persistentMap, updatedBoundaries)
+                const result = (res.data as { result?: string } | undefined)?.result
+                if (result && result !== 'ok') throw new Error(result)
+                setSavedBoundaries(JSON.stringify(snapshot))
+            }
+        } catch (err) {
+            // A gen3 robot usually does not answer a map change: it applies it
+            // and reconnects about a minute later, and the server times out
+            // (504). That is a success; only a real refusal is an error.
+            const status = (err as { response?: { status?: number } })?.response?.status
+            if (status === 504 || status === undefined && (err as Error)?.message?.includes('timeout')) {
+                setSavedBoundaries(JSON.stringify(snapshot))
+                setSaveNotice(t('ui.mapSentReconnect'))
+            } else {
+                setSaveFailed(true)
+            }
+        } finally {
+            setSaving(false)
         }
+    }
 
-        const updatedBoundaries = boundaries.map(boundary =>
-            boundary.type === 'polygon'
-                ? {
-                    ...boundary,
-                    relevancy: calcRelevancy(boundary.vertices)
-                }
-                : boundary
-        );
-        GEN3_COMMANDS.setMapBoundaries(robot.serial, persistentMap, updatedBoundaries).catch(() => {
-            getMapBoundaries();
-        });
-    }, [boundaries]);
+    // Leaving a map with unsaved changes asks first.
+    const confirmDiscard = () => !dirty || window.confirm(t('ui.unsavedLeave'))
 
     // mode changes
     useEffect(() => {
         if (mode === 'boundaries') setActiveBoundaryId(undefined)
-        if (mode === 'map-edit') {
-            const pmap = persistentMaps?.find(p => p.id === persistentMap)
-            if (!pmap) return;
-            setMapEditForm({
-                name: pmap.name,
-                enabled: 'enabled' in pmap ? pmap.enabled : false // TODO: meh fix
-            })
-        }
         if (mode !== 'boundary-edit') {
             setCurrentLinePoints([])
             setClosedAsPolygon(false)
@@ -224,18 +250,14 @@ export default () => {
         setBoundaries(prev => upsertPreserveOrder(prev, { ...item, enabled: !item.enabled }));
     };
 
-    const deleteBoundary = (id: string) => {
-        setBoundaries(prev => prev.filter(boundary => boundary.id !== id));
-        setMode('boundaries')
-    };
+    // What a new boundary will be: a no-go line never offers to close into a zone.
+    const [newKind, setNewKind] = useState<'zone' | 'line'>('zone')
+    const editedBoundary = boundaries.find(b => b.id === activeBoundaryId)
+    const lineOnly = editedBoundary ? editedBoundary.type === 'polyline' : newKind === 'line'
 
-    const openInfo = (id: string) => {
-        setMode('boundary-info')
-        setActiveBoundaryId(id)
-    }
-
-    const openEdit = (id: string) => {
+    const openEdit = (id: string, kind: 'zone' | 'line' = 'zone') => {
         if (mode !== 'boundaries' && mode !== 'boundary-info') return;
+        setNewKind(kind)
         SetReturnFromEditMode(mode)
         setMode('boundary-edit')
         setActiveBoundaryId(id)
@@ -243,10 +265,9 @@ export default () => {
 
     const handleBackBtn = () => {
         if (mode === 'boundaries') {
+            if (!confirmDiscard()) return
             setPersistentMap(undefined);
             setMode('maps')
-        } else if (mode === 'map-edit' || mode === 'boundary-info') {
-            setMode('boundaries')
         }
     }
 
@@ -254,8 +275,7 @@ export default () => {
         switch (mode) {
             case 'maps': return t('map.maps')
             case 'boundaries':
-            case 'map-edit':
-                return t('map.mapTitle', { name: persistentMaps?.find(p => p.id === persistentMap)?.name ?? '' })
+                return persistentMaps?.find(p => p.id === persistentMap)?.name ?? ''
             case 'boundary-info': return ' '
             case 'boundary-edit':
                 if (!drawerOpen) return t('map.dragUpToFinish')
@@ -263,17 +283,167 @@ export default () => {
         }
     }
 
+    // Gen3: picking a zone replaces the previous one (the robot ignores boundaryIds).
+    const toggleZone = (id: string) => setSelectedZones(prev =>
+        prev.includes(id) ? prev.filter(z => z !== id)
+            : robot.type === RobotType.NeatoGen3 ? [id] : [...prev, id])
+
     // TODO: user should be able to customize what modes etc
-    const cleanZone = async (zone: Zone) => {
-        if (!persistentMap) return
+    const cleanZones = async (zoneIds: string[]) => {
+        if (!persistentMap || zoneIds.length === 0) return
         if (robot.type === RobotType.NeatoGen3) {
-            GEN3_COMMANDS.startCleaningZone(robot.serial, persistentMap, zone.id, getGen3CleaningMode(), getGen3NavigationMode())
+            GEN3_COMMANDS.startCleaningZone(robot.serial, persistentMap, zoneIds[0], getGen3CleaningMode(), getGen3NavigationMode())
             return;
         }
         const promotedFloorplan = await getPromotedFloorplan();
         if (!promotedFloorplan) return // TODO: ERROR (will do when i do gen3)
-        GEN4_COMMANDS.startCleaning(robot.serial, getGen4CleaningMode(), getGen4NavigationMode(), promotedFloorplan.id, true, [zone.id])
+        GEN4_COMMANDS.startCleaning(robot.serial, getGen4CleaningMode(), getGen4NavigationMode(), promotedFloorplan.id, true, zoneIds)
     }
+
+    useEffect(() => {
+        setSelectedZones([])
+        setManaging(false)
+        setChecked([])
+        setRenaming(false)
+        setMenuOpen(false)
+    }, [persistentMap])
+
+    const currentMap = persistentMaps?.find(p => p.id === persistentMap)
+    const mapEnabled = currentMap && 'enabled' in currentMap ? currentMap.enabled : false
+    const cleaningZones = boundaries.filter(b => b.type === 'polygon' && ('function' in b ? b.function === 'cleaning' : true)) as Zone[]
+    const otherBoundaries = boundaries.filter(b => !cleaningZones.includes(b as Zone))
+
+    const toggleChecked = (id: string) => setChecked(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id])
+    const enterManage = (firstId?: string) => {
+        setMenuOpen(false)
+        setSelectedZones([])
+        setChecked(firstId ? [firstId] : [])
+        setManaging(true)
+    }
+    const exitManage = () => { setManaging(false); setChecked([]) }
+    const deleteChecked = () => {
+        setBoundaries(prev => prev.filter(b => !checked.includes(b.id)))
+        setSelectedZones(prev => prev.filter(z => !checked.includes(z)))
+        exitManage()
+    }
+    const editChecked = () => {
+        const target = boundaries.find(b => b.id === checked[0])
+        if (!target) return
+        openEdit(target.id, target.type === 'polyline' ? 'line' : 'zone')
+    }
+    const undoChanges = () => {
+        const saved = JSON.parse(savedBoundaries) as (NoGoLine | Zone)[]
+        setBoundaries(saved)
+        setSelectedZones(prev => prev.filter(z => saved.some(b => b.id === z)))
+        setChecked([])
+    }
+
+    // A tap on a zone of the map does what a tap on its button does.
+    const onMapTap = (point: Point) => {
+        if (mode !== 'boundaries') return
+        const hit = [...cleaningZones].reverse().find(z => pointInZone(point, z.vertices))
+        if (!hit) return
+        if (managing) toggleChecked(hit.id)
+        else toggleZone(hit.id)
+    }
+
+    const startRename = () => {
+        if (!currentMap) return
+        setMenuOpen(false)
+        setNameDraft(currentMap.name)
+        setRenaming(true)
+    }
+    const commitRename = () => {
+        const name = nameDraft.trim()
+        setRenaming(false)
+        if (!currentMap || !name || name === currentMap.name) return
+        updatePersistentMap({ name, enabled: mapEnabled })
+    }
+    const deleteMap = () => {
+        setMenuOpen(false)
+        if (!persistentMap || !currentMap || !window.confirm(t('ui.deleteMapConfirm', { name: currentMap.name }))) return
+        Http.deleteFloorplan(robot.serial, persistentMap).then(updatePersistentMaps).then(() => {
+            setPersistentMap(undefined)
+            setMode('maps')
+        })
+    }
+    const stopUsingMap = () => {
+        setMenuOpen(false)
+        if (!persistentMap) return
+        Http.postUnuseMapAsFloorPlan(robot.serial, persistentMap).then(() => {
+            setPersistentMap(undefined)
+            setMode('maps')
+            updatePersistentMaps()
+        })
+    }
+
+    // The options menu closes on any tap outside it.
+    const menuRef = useRef<HTMLDivElement>(null)
+    useEffect(() => {
+        if (!menuOpen) return
+        const close = (e: PointerEvent) => { if (!menuRef.current?.contains(e.target as Node)) setMenuOpen(false) }
+        document.addEventListener('pointerdown', close)
+        return () => document.removeEventListener('pointerdown', close)
+    }, [menuOpen])
+
+    const editable = currentMap && 'promoted' in currentMap ? (currentMap as Floorplan).promoted : true
+    const canStopUsing = robot.type === RobotType.NeatoGen4 && !!(currentMap as Floorplan | undefined)?.in_maps_list && !(currentMap as Floorplan | undefined)?.promoted
+
+    const stop = (e: React.SyntheticEvent) => e.stopPropagation()
+    const drawerTitle = mode === 'boundaries' && currentMap ? (renaming
+        ? <input className={styles.renameInput} value={nameDraft} autoFocus aria-label={t('ui.renameMap')}
+            onPointerDown={stop} onClick={stop} onChange={e => setNameDraft(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') commitRename(); if (e.key === 'Escape') setRenaming(false) }} />
+        : <button type="button" className={styles.titleButton} aria-label={`${t('ui.renameMap')} : ${currentMap.name}`}
+            onClick={e => { if (!drawerOpen) return; e.stopPropagation(); startRename() }}>{currentMap.name}</button>
+    ) : getTitle()
+
+    const headerAction = !persistentMap || mode !== 'boundaries' ? undefined : renaming ? (
+        <div className={styles.headerButtons}>
+            <button type="button" className={styles.iconButtonAccent} aria-label={t('common.save')} onClick={commitRename}><LuCheck size={20} aria-hidden="true" /></button>
+            <button type="button" className={styles.iconButton} aria-label={t('common.cancel')} onClick={() => setRenaming(false)}><LuX size={20} aria-hidden="true" /></button>
+        </div>
+    ) : (
+        <div className={styles.headerButtons}>
+            {(dirty || saving || saveFailed) && (
+                <button type="button" className={`${styles.saveButton} ${styles.saveDirty} ${saveFailed ? styles.saveFailed : ''}`}
+                    disabled={!dirty || saving} onClick={saveBoundaries}>
+                    {saving ? t('ui.saving') : saveFailed ? t('ui.saveRetry') : t('common.save')}
+                </button>
+            )}
+            <div className={styles.menuAnchor} ref={menuRef}>
+                <button type="button" className={`${styles.iconButton} ${menuOpen ? styles.iconButtonOn : ''}`} aria-label={t('ui.mapOptions')}
+                    aria-haspopup="menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(o => !o)}>
+                    <LuEllipsis size={20} aria-hidden="true" />
+                </button>
+                {menuOpen && (
+                    <div className={styles.menu} role="menu">
+                        {editable && (
+                            <button type="button" role="menuitem" onClick={() => managing ? exitManage() : enterManage()}>
+                                <LuSquareCheck size={18} aria-hidden="true" />{managing ? t('ui.done') : t('ui.manageZones')}
+                            </button>
+                        )}
+                        <button type="button" role="menuitem" onClick={startRename}>
+                            <LuPencil size={18} aria-hidden="true" />{t('ui.renameMap')}
+                        </button>
+                        {canStopUsing && (
+                            <button type="button" role="menuitem" onClick={stopUsingMap}>
+                                <LuX size={18} aria-hidden="true" />{t('map.stopUsingAsFloormap')}
+                            </button>
+                        )}
+                        {robot.type === RobotType.NeatoGen3 && (
+                            <>
+                                <div className={styles.menuSeparator} />
+                                <button type="button" role="menuitem" className={styles.menuDanger} onClick={deleteMap}>
+                                    <LuTrash2 size={18} aria-hidden="true" />{t('ui.deleteMap')}
+                                </button>
+                            </>
+                        )}
+                    </div>
+                )}
+            </div>
+        </div>
+    )
 
     return (
         <div className={styles.container}>
@@ -288,6 +458,8 @@ export default () => {
                     closedAsPolygon={closedAsPolygon}
                     setClosedAsPolygon={setClosedAsPolygon}
                     setDrawerOpen={setDrawerOpen}
+                    allowPolygon={!lineOnly}
+                    onTap={onMapTap}
                 />
             ) : (
                 <canvas className={styles.canvas} />
@@ -302,11 +474,12 @@ export default () => {
             <Drawer
                 open={drawerOpen}
                 handle={true}
-                showBackButton={['map-edit', 'boundaries', 'boundary-info'].includes(mode)}
+                showBackButton={mode === 'boundaries' && !renaming}
                 onBackButtonClick={handleBackBtn}
                 onOpenChange={setDrawerOpen}
-                openHeightPercent={mode === 'boundary-edit' ? 60 : mode === 'boundary-info' ? 30 : 70}
-                title={getTitle()}
+                openHeightPercent={mode === 'boundary-edit' ? 60 : mode === 'boundary-info' ? 30 : mode === 'boundaries' ? 58 : 70}
+                title={drawerTitle}
+                headerAction={headerAction}
             >
                 {mode === 'maps' && (
                     <div className={styles.featureList}>
@@ -345,39 +518,6 @@ export default () => {
                     </div>
                 )}
 
-                {mode === 'map-edit' && mapEditform && persistentMap && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                        <Input
-                            type="text"
-                            label={t('common.name')}
-                            value={mapEditform.name}
-                            onChange={(name) => updateForm(setMapEditForm, { name })} />
-                        {robot.type === RobotType.NeatoGen3 && (
-                            <Input type="switch" label={t('common.enabled')} value={mapEditform.enabled} onChange={(enabled) => updateForm(setMapEditForm, { enabled })} />
-                        )}
-                        <Button text={t('common.save')} style='success' onClick={() => {
-                            updatePersistentMap(mapEditform);
-                        }} />
-                        {robot.type === RobotType.NeatoGen4 &&
-                            (persistentMaps?.find(p => p.id === persistentMap) as Floorplan)?.in_maps_list &&
-                            !(persistentMaps?.find(p => p.id === persistentMap) as Floorplan)?.promoted && (
-                                <div style={{ padding: '1rem 0' }}>
-                                    <Button text={t('map.stopUsingAsFloormap')} style='fail' onClick={() =>
-                                        Http.postUnuseMapAsFloorPlan(robot.serial, persistentMap).then(() => {
-                                            setMode('maps')
-                                            updatePersistentMaps()
-                                        })} />
-                                </div>
-                            )}
-
-                        {robot.type === RobotType.NeatoGen3 && (
-                            <div style={{ padding: '1rem 0' }}>
-                                <Button text={t('common.delete')} style='fail' onClick={() => Http.deleteFloorplan(robot.serial, persistentMap).then(updatePersistentMaps).then(() => setMode('maps'))} />
-                            </div>
-                        )}
-                    </div>
-                )}
-
                 {mode === 'boundary-edit' && (
                     <EditBoundaryDetails
                         currentLinePoints={currentLinePoints}
@@ -397,58 +537,108 @@ export default () => {
                     />
                 )}
 
-                {mode === 'boundary-info' && activeBoundaryId && (
-                    <BoundaryDetails
-                        map={persistentMaps?.find(p => p.id === persistentMap)}
-                        boundary={boundaries.find(b => b.id === activeBoundaryId)!}
-                        docked={isDocked(robot)}
-                        deleteBoundary={deleteBoundary}
-                        editBoundary={() => {
-                            setMode('boundary-edit');
-                            SetReturnFromEditMode(mode)
-                        }}
-                        onCleanZone={(zone) => cleanZone(zone)}
-                    />
-                )}
-
                 {mode === 'boundaries' && (
-                    <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end' }}>
-                            {robot.type === RobotType.NeatoGen4 ? (
-                                <PromoteDemoteBtn robot={robot} map={persistentMaps?.find(p => p.id === persistentMap) as Floorplan} onSuccess={updatePersistentMaps} />
-                            ) : (
-                                <span>{(persistentMaps?.find(p => p.id === persistentMap) as Neato.Gen3.PersistentMap)?.enabled ? t('common.enabled') : t('common.disabled')}</span>
-                            )}
-
-                            <Button text={t('map.editMapDetails')} style='primary' onClick={() => setMode('map-edit')} />
-                        </div>
-                        <hr />
-                        <div className={styles.buttonContainer}>
-                            <Button text={t('map.addFeature')} style='primary' onClick={() => openEdit(uuidv4())} />
-                        </div>
-
-                        <div className={styles.featureList}>
-                            {boundaries.map((item, i) => (
-                                <div key={i} className={styles.item} style={{ background: withAlpha(item.color, 0.13) }} onClick={() => openInfo(item.id)}>
-                                    <div className={styles.info}>
-                                        <span>{item.name}</span>
-                                        <span className={styles.type} style={{ color: normalizeHex(item.color) ?? undefined }}>
-                                            {item.type === 'polygon' ?
-                                                'function' in item ? (item.function === 'cleaning' ? t('map.cleaningZone') : t('map.noGoZone'))
-                                                    : t('map.zone') : t('map.noGoLine')
-                                            }
-                                        </span>
-                                    </div>
-                                    {('promoted' in (persistentMaps?.find(p => p.id === persistentMap) as Floorplan) ? (persistentMaps?.find(p => p.id === persistentMap) as Floorplan).promoted : true) && (
-                                        <>
-                                            {(item.type === 'polyline' || item.function === 'nogo') && (<Input type="switch" skipSection={true} value={item.enabled} onChange={() => toggleNoGo(item)} />)}
-                                            {item.type === 'polygon' && ('function' in item ? item.function === 'cleaning' : true) && (<Button style='primary' disabled={!isDocked(robot)} text={t('map.cleanZone')} onClick={() => cleanZone(item)} />)}
-                                        </>
-                                    )}
-                                </div>
+                    <div className={ui.drawerBody}>
+                        <div className={styles.mapTabs}>
+                            {(persistentMaps ?? []).filter(m => 'enabled' in m ? m.enabled : true).map(m => (
+                                <button key={m.id} type="button" className={`${styles.mapTab} ${m.id === persistentMap ? styles.mapTabOn : ''}`}
+                                    onClick={() => m.id !== persistentMap && confirmDiscard() && setPersistentMap(m.id)}>{m.name}</button>
                             ))}
+                            <span style={{ flex: 1 }} />
+                            {robot.type === RobotType.NeatoGen4
+                                ? <PromoteDemoteBtn robot={robot} map={currentMap as Floorplan} onSuccess={updatePersistentMaps} />
+                                : currentMap && (
+                                    <label className={styles.activeSwitch}>
+                                        <span className={ui.small}>{t('ui.mapActive')}</span>
+                                        <Input type="switch" skipSection={true} value={mapEnabled}
+                                            onChange={() => updatePersistentMap({ name: currentMap.name, enabled: !mapEnabled })} />
+                                    </label>
+                                )}
                         </div>
 
+                        {dirty && (
+                            <div className={styles.draftBanner} role="status">
+                                <span>{t('ui.unsavedChanges')}</span>
+                                <button type="button" onClick={undoChanges}><LuRotateCcw size={14} aria-hidden="true" />{t('ui.undoChanges')}</button>
+                            </div>
+                        )}
+
+                        {editable && (
+                            <>
+                                <SectionLabel right={managing
+                                        ? <button type="button" className={styles.doneButton} onClick={exitManage}>{t('ui.done')}</button>
+                                        : cleaningZones.length > 0 ? <span className={ui.small}>{t('ui.longPressHint')}</span> : undefined}>
+                                    {managing ? t('ui.checkedCount', { count: checked.length }) : robot.type === RobotType.NeatoGen3 ? t('ui.zonePick') : t('ui.zonesOrder')}
+                                </SectionLabel>
+                                <div className={`${ui.grid2} ${styles.zoneGrid}`}>
+                                    {cleaningZones.map(zone => {
+                                        const color = normalizeHex(zone.color) ?? undefined
+                                        if (managing) return <Chip key={zone.id} row label={zone.name} color={color}
+                                            checked={checked.includes(zone.id)} onClick={() => toggleChecked(zone.id)} />
+                                        const order = selectedZones.indexOf(zone.id) + 1
+                                        return <Chip key={zone.id} row label={zone.name} color={color} order={robot.type === RobotType.NeatoGen3 ? null : order || null} active={order > 0}
+                                            onClick={() => toggleZone(zone.id)} onLongPress={() => enterManage(zone.id)} />
+                                    })}
+                                    {(managing || cleaningZones.length === 0) && <Chip row dashed label={t('ui.addZone')} onClick={() => openEdit(uuidv4())} />}
+                                </div>
+                                {!managing && cleaningZones.length > 0 && selectedZones.length === 0 && <div className={ui.small}>{t('ui.tapMapHint')}</div>}
+                            </>
+                        )}
+
+                        {(otherBoundaries.length > 0 || (editable && managing)) && (
+                            <SectionLabel right={editable && managing
+                                ? <button type="button" className={styles.addButton} onClick={() => openEdit(uuidv4(), 'line')}>{t('ui.addNoGo')}</button>
+                                : undefined}>
+                                {t('ui.otherBoundaries')}
+                            </SectionLabel>
+                        )}
+                        {editable && managing && otherBoundaries.length === 0 && <div className={ui.info}>{t('ui.noGoHint')}</div>}
+                        {otherBoundaries.length > 0 && (
+                            <div className={ui.list}>
+                                {otherBoundaries.map(item => {
+                                    const color = normalizeHex(item.color) ?? undefined
+                                    const kind = item.type === 'polygon' ? t('map.noGoZone') : t('map.noGoLine')
+                                    const swatch = <span className={item.type === 'polygon' ? styles.swatchZone : styles.swatchLine} style={{ background: color }} aria-hidden="true" />
+                                    const label = <span style={{ display: 'flex', flexDirection: 'column' }}>
+                                        <span>{item.name || kind}</span>
+                                        {item.name && <span className={ui.small}>{kind}</span>}
+                                    </span>
+                                    if (editable && managing) {
+                                        const on = checked.includes(item.id)
+                                        return <ListRow key={item.id} icon={swatch} label={label} highlight={on}
+                                            right={<span className={`${styles.check} ${on ? styles.checkOn : ''}`} aria-hidden="true">{on && <LuCheck size={14} strokeWidth={3} />}</span>}
+                                            onClick={() => toggleChecked(item.id)} />
+                                    }
+                                    return <ListRow key={item.id} icon={swatch} label={label}
+                                        right={editable ? <Input type="switch" skipSection={true} value={item.enabled} onChange={() => toggleNoGo(item)} /> : undefined} />
+                                })}
+                            </div>
+                        )}
+
+                        {saveNotice && !dirty && <div className={ui.info}>{saveNotice}</div>}
+
+                        {managing ? (
+                            <div className={`${styles.mapActions} ${styles.mapActions2}`}>
+                                <button type="button" className={ui.ghost} disabled={checked.length !== 1} onClick={editChecked}>
+                                    <LuPencil size={18} aria-hidden="true" />{t('ui.edit')}
+                                </button>
+                                <button type="button" className={`${ui.primary} ${styles.dangerFill}`} disabled={checked.length === 0} onClick={deleteChecked}>
+                                    <LuTrash2 size={18} aria-hidden="true" />{t('ui.deleteCount', { count: checked.length })}
+                                </button>
+                            </div>
+                        ) : (
+                            <>
+                                {!isDocked(robot) && <div className={ui.info}>{t('ui.needsDock')}</div>}
+                                {dirty && <div className={ui.info}>{t('ui.saveBeforeClean')}</div>}
+                                <div className={styles.mapActions}>
+                                    <button type="button" className={ui.primary} disabled={!isDocked(robot) || selectedZones.length === 0 || !editable || dirty}
+                                        onClick={() => cleanZones(selectedZones)}>
+                                        <LuPlay size={18} fill="currentColor" aria-hidden="true" />
+                                        {selectedZones.length > 1 ? t('ui.cleanZones', { count: selectedZones.length }) : t('ui.cleanTitle')}
+                                    </button>
+                                </div>
+                            </>
+                        )}
                     </div>
                 )}
                 {robot.type === RobotType.NeatoGen4 && ['boundaries', 'maps'].includes(mode) && (
@@ -460,52 +650,6 @@ export default () => {
         </div>
     )
 }
-
-interface BoundaryDetailsProps {
-    map?: Floorplan | Neato.Gen3.PersistentMap
-    boundary: NoGoLine | Zone
-    docked: boolean
-    editBoundary: (id: string) => void
-    deleteBoundary: (id: string) => void
-    onCleanZone: (boundary: Zone) => void
-}
-
-const BoundaryDetails = (props: BoundaryDetailsProps) => {
-    const { t } = useTranslation()
-    return (
-        <div className={styles.boundaryDetails}>
-            <div className={styles.featureList}>
-                <div className={styles.item} style={{ background: withAlpha(props.boundary.color, 0.13) }}>
-                    <div className={styles.info}>
-                        <span>{props.boundary.name}</span>
-                        <span className={styles.type} style={{ color: normalizeHex(props.boundary.color) ?? undefined }}>
-                            {props.boundary.type === 'polygon' ?
-                                'function' in props.boundary ? (props.boundary.function === 'cleaning' ? t('map.cleaningZone') : t('map.noGoZone'))
-                                    : t('map.zone') : t('map.noGoLine')
-                            }
-                        </span>
-                    </div>
-                    {(props.map && 'promoted' in props.map ? props.map.promoted : true) && (
-                        <>
-                            {(props.boundary.type === 'polyline' || props.boundary.function === 'nogo') && (<Input type="switch" skipSection={true} value={props.boundary.enabled} onChange={(value) => props.boundary.enabled = value} />)}
-                            {props.boundary.type === 'polygon' && ('function' in props.boundary ? props.boundary.function === 'cleaning' : true) && (<Button style='primary' disabled={!props.docked} text={t('map.cleanZone')} onClick={() => props.onCleanZone(props.boundary as Zone)} />)}
-                        </>
-                    )}
-                </div>
-            </div>
-
-            <div className={styles.zoneActions}>
-                {/* TODO: add a scheduiling feature here in the future */}
-                {/* {props.boundary.type === 'polygon' && (
-                    <Button text={t('map.addSchedule')} style='secondary' onClick={() => console.log('Add schedule')} />
-                )} */}
-                <Button text={t('common.edit')} style='primary' onClick={() => props.editBoundary(props.boundary.id)} />
-                <Button text={t('common.delete')} style='fail' onClick={() => props.deleteBoundary(props.boundary.id)} />
-            </div>
-        </div>
-    )
-}
-
 
 enum BoundaryTypes {
     NOGO_LINE = 'nogo-line',

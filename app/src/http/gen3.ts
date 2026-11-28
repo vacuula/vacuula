@@ -1,5 +1,5 @@
 import { Http } from "../http"
-import type { NoGoLine, SetZone, Zone } from "../pages/map/types"
+import type { NoGoLine, SetZone } from "../components/map/types"
 import type { ScheduleEvent } from "../pages/schedule/types"
 import type { Neato } from "../types"
 import type { Preferences } from "../types/neato/gen3"
@@ -25,7 +25,7 @@ function getRobotInfo() {
 }
 
 function dismissCurrentAlert(serial: string) {
-    return Http.sendCmd(serial, { cmd: "dismissCurrentAlert" })
+    return Http.sendCmd<RobotBaseResponse<{}>>(serial, { cmd: "dismissCurrentAlert" })
 }
 
 function findMe(serial: string) {
@@ -100,18 +100,6 @@ function startCleaningZone(serial: string, mapId: string, zoneId: string, mode: 
     })
 }
 
-// Is this really how it works?
-function startCleaningZones(serial: string, zoneIds: string[], mode: CleaningMode, navigationMode: CleaningNavigationMode) {
-    return Http.sendCmd(serial, {
-        cmd: "startCleaning",
-        params: {
-            category: CleaningCategory.MAP,
-            mode,
-            navigationMode,
-            boundaryIds: zoneIds,
-        }
-    })
-}
 
 
 
@@ -143,15 +131,26 @@ function getSchedule(serial: string) {
 }
 
 function setSchedule(serial: string, events: ScheduleEvent[]) {
-    return Http.sendCmd(serial, { cmd: "setSchedule", params: { events } })
+    // getSchedule returns a display boundary; setSchedule needs its ID instead.
+    const writableEvents = events.map(event => {
+        const boundaryId = event.boundaryId ?? event.boundary?.id
+        return {
+            mode: event.mode,
+            day: event.day,
+            startTime: event.startTime,
+            ...(boundaryId ? { boundaryId } : {}),
+            ...(event.mapId ? { mapId: event.mapId } : {}),
+        }
+    })
+    return Http.sendCmd(serial, { cmd: "setSchedule", params: { events: writableEvents } })
 }
 
 function enableSchedule(serial: string) {
-    return Http.sendCmd<RobotBaseResponse>(serial, { cmd: "enableSchedule" })
+    return Http.sendCmd<RobotBaseResponse<{}>>(serial, { cmd: "enableSchedule" })
 }
 
 function disableSchedule(serial: string) {
-    return Http.sendCmd<RobotBaseResponse>(serial, { cmd: "disableSchedule" })
+    return Http.sendCmd<RobotBaseResponse<{}>>(serial, { cmd: "disableSchedule" })
 }
 
 export const GEN3_COMMANDS = {
@@ -167,7 +166,6 @@ export const GEN3_COMMANDS = {
     startCleaning,
     startCleaningSpot,
     startCleaningZone,
-    startCleaningZones,
     getPreferences,
     setPreferences,
     findMe,

@@ -23,6 +23,8 @@ class RobotConn:
         # self.addr = addr
 
         self.stop_event = threading.Event()
+        # The underlying socket, when known (closed when the robot is deleted).
+        self.sock = None
 
 # from dataclasses import dataclass
 # from typing import Literal, Union
